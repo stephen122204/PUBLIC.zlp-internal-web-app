@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment variables — never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# macOS
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.vscode/settings.json
+.idea/
+reference/
+
+# Internal notes — not for public docs
+HOWDY-INTEGRATION-NOTES.md

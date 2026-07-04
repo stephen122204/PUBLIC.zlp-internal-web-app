@@ -1,0 +1,1147 @@
+{
+  "plans": [
+    {
+      "id": "bs-cs-2025",
+      "code": "bs-cs",
+      "catalog": "2025-2026",
+      "title": "Computer Science - BS",
+      "school": "Texas A&M University",
+      "campus": "College Station",
+      "totalHours": 126,
+      "verifiedUccHoursTarget": 21,
+      "trackedElectiveHoursTarget": 18,
+      "trackedElectiveCourseTarget": 6,
+      "scienceElectiveHoursTarget": 7,
+      "generalElectiveHoursTarget": 1,
+      "emphasisHoursTarget": 12,
+      "graduationRequirements": {
+        "highImpact": true,
+        "seminar": "CSCE 481",
+        "capstone": "CSCE 482"
+      },
+      "graphColumns": [
+        {
+          "id": "y1f",
+          "label": "Year 1 Fall"
+        },
+        {
+          "id": "y1s",
+          "label": "Year 1 Spring"
+        },
+        {
+          "id": "y2f",
+          "label": "Year 2 Fall"
+        },
+        {
+          "id": "y2s",
+          "label": "Year 2 Spring"
+        },
+        {
+          "id": "y3f",
+          "label": "Year 3 Fall"
+        },
+        {
+          "id": "y3s",
+          "label": "Year 3 Spring"
+        },
+        {
+          "id": "y4f",
+          "label": "Year 4 Fall"
+        },
+        {
+          "id": "y4s",
+          "label": "Year 4 Spring"
+        }
+      ],
+      "graphNodes": [
+        {
+          "id": "chem-107",
+          "type": "course",
+          "column": "y1f",
+          "code": "CHEM 107",
+          "title": "General Chemistry for Engineering Students",
+          "hours": 3,
+          "matches": [
+            "CHEM 107"
+          ],
+          "prereqs": [],
+          "coreqs": ["CHEM 117"],
+          "required": true
+        },
+        {
+          "id": "chem-117",
+          "type": "course",
+          "column": "y1f",
+          "code": "CHEM 117",
+          "title": "General Chemistry for Engineering Students Laboratory",
+          "hours": 1,
+          "matches": [
+            "CHEM 117"
+          ],
+          "prereqs": [],
+          "coreqs": ["CHEM 107"],
+          "required": true
+        },
+        {
+          "id": "engl-103-104",
+          "type": "choice",
+          "column": "y1f",
+          "code": "ENGL 103 / ENGL 104",
+          "title": "Introduction to Rhetoric and Composition / Composition and Rhetoric",
+          "hours": 3,
+          "matches": [
+            "ENGL 103",
+            "ENGL 104"
+          ],
+          "prereqs": [],
+          "required": true,
+          "options": [
+            "ENGL 103",
+            "ENGL 104"
+          ]
+        },
+        {
+          "id": "engr-102",
+          "type": "course",
+          "column": "y1f",
+          "code": "ENGR 102",
+          "title": "Engineering Lab I - Computation",
+          "hours": 2,
+          "matches": [
+            "ENGR 102"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "math-151",
+          "type": "course",
+          "column": "y1f",
+          "code": "MATH 151",
+          "title": "Engineering Mathematics I",
+          "hours": 4,
+          "matches": [
+            "MATH 151"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "math-152",
+          "type": "course",
+          "column": "y1s",
+          "code": "MATH 152",
+          "title": "Engineering Mathematics II",
+          "hours": 4,
+          "matches": [
+            "MATH 152"
+          ],
+          "prereqs": [
+            "MATH 151"
+          ],
+          "required": true
+        },
+        {
+          "id": "phys-206",
+          "type": "course",
+          "column": "y1s",
+          "code": "PHYS 206",
+          "title": "Newtonian Mechanics for Engineering and Science",
+          "hours": 3,
+          "matches": [
+            "PHYS 206"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "engr-216-phys-216",
+          "type": "choice",
+          "column": "y1s",
+          "code": "ENGR 216 / PHYS 216",
+          "title": "Experimental Physics and Engineering Lab II - Mechanics",
+          "hours": 2,
+          "matches": [
+            "ENGR 216",
+            "PHYS 216"
+          ],
+          "prereqs": [],
+          "required": true,
+          "options": [
+            "ENGR 216",
+            "PHYS 216"
+          ]
+        },
+        {
+          "id": "csce-181",
+          "type": "course",
+          "column": "y2f",
+          "code": "CSCE 181",
+          "title": "Introduction to Computing",
+          "hours": 1,
+          "matches": [
+            "CSCE 181"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "csce-120",
+          "type": "course",
+          "column": "y2f",
+          "code": "CSCE 120",
+          "title": "Program Design and Concepts",
+          "hours": 3,
+          "matches": [
+            "CSCE 120"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "csce-222",
+          "type": "course",
+          "column": "y2f",
+          "code": "CSCE 222",
+          "title": "Discrete Structures for Computing",
+          "hours": 3,
+          "matches": [
+            "CSCE 222",
+            "CSCE 222/ECEN 222"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "math-304",
+          "type": "course",
+          "column": "y2f",
+          "code": "MATH 304",
+          "title": "Linear Algebra",
+          "hours": 3,
+          "matches": [
+            "MATH 304"
+          ],
+          "prereqs": [
+            "MATH 152"
+          ],
+          "required": true
+        },
+        {
+          "id": "csce-221",
+          "type": "course",
+          "column": "y2s",
+          "code": "CSCE 221",
+          "title": "Data Structures and Algorithms",
+          "hours": 4,
+          "matches": [
+            "CSCE 221"
+          ],
+          "prereqs": [
+            "CSCE 120"
+          ],
+          "required": true
+        },
+        {
+          "id": "csce-312",
+          "type": "course",
+          "column": "y2s",
+          "code": "CSCE 312",
+          "title": "Computer Organization",
+          "hours": 4,
+          "matches": [
+            "CSCE 312"
+          ],
+          "prereqs": [
+            "CSCE 120"
+          ],
+          "required": true
+        },
+        {
+          "id": "csce-314",
+          "type": "course",
+          "column": "y2s",
+          "code": "CSCE 314",
+          "title": "Programming Languages",
+          "hours": 3,
+          "matches": [
+            "CSCE 314"
+          ],
+          "prereqs": [
+            "CSCE 221"
+          ],
+          "required": true
+        },
+        {
+          "id": "comm-choice",
+          "type": "choice",
+          "column": "y2s",
+          "code": "COMM 203 / COMM 205 / ENGL 210",
+          "title": "Communication Requirement",
+          "hours": 3,
+          "matches": [
+            "COMM 203",
+            "COMM 205",
+            "ENGL 210"
+          ],
+          "prereqs": [],
+          "required": true,
+          "options": [
+            "COMM 203",
+            "COMM 205",
+            "ENGL 210"
+          ]
+        },
+        {
+          "id": "csce-313",
+          "type": "course",
+          "column": "y3f",
+          "code": "CSCE 313",
+          "title": "Introduction to Computer Systems",
+          "hours": 4,
+          "matches": [
+            "CSCE 313"
+          ],
+          "prereqs": [
+            "CSCE 221",
+            "CSCE 312"
+          ],
+          "required": true
+        },
+        {
+          "id": "csce-331",
+          "type": "course",
+          "column": "y3f",
+          "code": "CSCE 331",
+          "title": "Foundations of Software Engineering",
+          "hours": 4,
+          "matches": [
+            "CSCE 331"
+          ],
+          "prereqs": [
+            "CSCE 221"
+          ],
+          "required": true
+        },
+        {
+          "id": "stat-211",
+          "type": "course",
+          "column": "y3f",
+          "code": "STAT 211",
+          "title": "Principles of Statistics I",
+          "hours": 3,
+          "matches": [
+            "STAT 211"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "csce-411",
+          "type": "course",
+          "column": "y3s",
+          "code": "CSCE 411",
+          "title": "Design and Analysis of Algorithms",
+          "hours": 3,
+          "matches": [
+            "CSCE 411"
+          ],
+          "prereqs": [
+            "CSCE 221",
+            "CSCE 222"
+          ],
+          "required": true
+        },
+        {
+          "id": "csce-481",
+          "type": "course",
+          "column": "y3s",
+          "code": "CSCE 481",
+          "title": "Seminar",
+          "hours": 1,
+          "matches": [
+            "CSCE 481"
+          ],
+          "prereqs": [
+            "CSCE 331"
+          ],
+          "required": true
+        },
+        {
+          "id": "math-advanced-choice",
+          "type": "choice",
+          "column": "y3s",
+          "code": "MATH 251 / MATH 308 / STAT 212",
+          "title": "Advanced Math / Statistics Choice",
+          "hours": 3,
+          "matches": [
+            "MATH 251",
+            "MATH 308",
+            "STAT 212"
+          ],
+          "prereqs": [
+            "MATH 152"
+          ],
+          "required": true,
+          "options": [
+            "MATH 251",
+            "MATH 308",
+            "STAT 212"
+          ]
+        },
+        {
+          "id": "csce-399",
+          "type": "course",
+          "column": "y3s",
+          "code": "CSCE 399",
+          "title": "High-Impact Experience",
+          "hours": 0,
+          "matches": [
+            "CSCE 399"
+          ],
+          "prereqs": [],
+          "required": true
+        },
+        {
+          "id": "csce-482",
+          "type": "course",
+          "column": "y4s",
+          "code": "CSCE 482",
+          "title": "Senior Capstone Design",
+          "hours": 3,
+          "matches": [
+            "CSCE 482"
+          ],
+          "prereqs": [
+            "CSCE 331",
+            "CSCE 481"
+          ],
+          "required": true
+        }
+      ],
+      "courseCatalog": {
+        "POLS 206": {
+          "title": "American National Government",
+          "hours": 3,
+          "prereqs": []
+        },
+        "POLS 207": {
+          "title": "State and Local Government",
+          "hours": 3,
+          "prereqs": []
+        },
+        "HIST 105": {
+          "title": "History of the United States",
+          "hours": 3,
+          "prereqs": []
+        },
+        "HIST 106": {
+          "title": "History of the United States",
+          "hours": 3,
+          "prereqs": []
+        },
+        "PHYS 207": {
+          "title": "Electricity and Magnetism for Engineering and Science",
+          "hours": 3,
+          "prereqs": [
+            "PHYS 206",
+            "MATH 152"
+          ]
+        },
+        "PHYS 217": {
+          "title": "Experimental Physics and Engineering Lab III - Electricity and Magnetism",
+          "hours": 2,
+          "prereqs": [
+            "PHYS 206",
+            "PHYS 216"
+          ]
+        },
+        "ECON 203": {
+          "title": "Principles of Economics",
+          "hours": 3,
+          "prereqs": []
+        },
+        "CSCE 449": {
+          "title": "Applied Cryptography",
+          "hours": 3,
+          "prereqs": [
+            "CSCE 331"
+          ]
+        },
+        "ENDS 101": {
+          "title": "Design Process",
+          "hours": 3,
+          "prereqs": []
+        },
+        "BUSN 450": {
+          "title": "Business Transformation with Generative AI",
+          "hours": 3,
+          "prereqs": []
+        },
+        "BUSN 460": {
+          "title": "Machine Learning Predictive Models and Business Applications",
+          "hours": 3,
+          "prereqs": []
+        },
+        "FIVS 205": {
+          "title": "Digital Forensic Engineering",
+          "hours": 3,
+          "prereqs": []
+        },
+        "FIVS 406": {
+          "title": "Advanced Cyberforensics",
+          "hours": 3,
+          "prereqs": []
+        },
+        "CSCE 715": {
+          "title": "Secure Authentication Systems",
+          "hours": 3,
+          "prereqs": []
+        },
+        "CSCE 716": {
+          "title": "Foundations and Applications of Blockchains",
+          "hours": 3,
+          "prereqs": []
+        }
+      },
+      "flexibleRequirements": [
+        {
+          "id": "ucc-hours",
+          "title": "Verified UCC Hours",
+          "targetHours": 21,
+          "note": "This planner verifies a core subset of common TAMU UCC courses. Final category validation still needs advisor review."
+        },
+        {
+          "id": "science-electives",
+          "title": "Science Elective Hours",
+          "targetHours": 7,
+          "note": "The public catalog lists 7 hours of science electives outside the named core science sequence."
+        },
+        {
+          "id": "general-elective",
+          "title": "General Elective Hours",
+          "targetHours": 1,
+          "note": "The CS BS plan includes 1 hour of general elective credit."
+        },
+        {
+          "id": "tracked-electives",
+          "title": "Tracked CSCE Electives",
+          "targetHours": 18,
+          "note": "The public catalog requires 18 hours of CSCE electives. The advising page further requires CSCE 411 plus six additional tracked courses with track coverage."
+        },
+        {
+          "id": "emphasis-area",
+          "title": "Emphasis Area",
+          "targetHours": 12,
+          "note": "The emphasis area must be approved through the degree planner. This planner treats it as an advisor-reviewed requirement."
+        }
+      ],
+      "scienceElectiveMatchers": [
+        "CHEM 120",
+        "PHYS 207",
+        "ENGR 217",
+        "PHYS 217",
+        "BIOL 111",
+        "BIOL 112",
+        "CHEM 119"
+      ],
+      "verifiedUccMatchers": [
+        "POLS 206",
+        "POLS 207",
+        "HIST 105",
+        "HIST 106",
+        "ECON 202",
+        "ECON 203",
+        "PSYC 107",
+        "SOCI 205",
+        "PHIL 111",
+        "PHIL 240",
+        "ENGL 203",
+        "ENGL 204",
+        "ENGL 210",
+        "COMM 203",
+        "COMM 205"
+      ],
+      "trackedElectives": {
+        "Algorithms and Theory": [
+          {
+            "code": "CSCE 411",
+            "title": "Analysis of Algorithms",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 221",
+              "CSCE 222"
+            ]
+          },
+          {
+            "code": "CSCE 433",
+            "title": "Formal Languages and Automata",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 440",
+            "title": "Quantum Algorithms",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 442",
+            "title": "Scientific Programming",
+            "hours": 3,
+            "prereqs": []
+          }
+        ],
+        "Systems": [
+          {
+            "code": "CSCE 410",
+            "title": "Operating Systems",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313"
+            ]
+          },
+          {
+            "code": "CSCE 412",
+            "title": "Cloud Computing",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313"
+            ]
+          },
+          {
+            "code": "CSCE 416",
+            "title": "Hardware Design and Verification",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 416",
+              "ECEN 416"
+            ]
+          },
+          {
+            "code": "CSCE 426",
+            "title": "Security of Embedded Systems",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313"
+            ],
+            "matches": [
+              "CSCE 426",
+              "ECEN 426"
+            ]
+          },
+          {
+            "code": "CSCE 456",
+            "title": "Real-Time Computing",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 461",
+            "title": "Embedded Systems for Medical Applications",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 461",
+              "BMEN 428"
+            ]
+          },
+          {
+            "code": "CSCE 462",
+            "title": "Microcomputer Systems",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 463",
+            "title": "Networks & Distributed Programming",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313"
+            ]
+          },
+          {
+            "code": "CSCE 464",
+            "title": "Wireless and Mobile Systems",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313"
+            ]
+          },
+          {
+            "code": "CSCE 465",
+            "title": "Computer & Network Security",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313",
+              "CSCE 331"
+            ]
+          },
+          {
+            "code": "CSCE 469",
+            "title": "Advanced Computer Architecture",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 312"
+            ],
+            "matches": [
+              "CSCE 469",
+              "ECEN 469"
+            ]
+          }
+        ],
+        "Software": [
+          {
+            "code": "CSCE 413",
+            "title": "Software Security",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313",
+              "CSCE 331"
+            ]
+          },
+          {
+            "code": "CSCE 429",
+            "title": "Software Development, Globalization and Culture Abroad",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 430",
+            "title": "Problem Solving Design",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 431",
+            "title": "Software Engineering",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 331"
+            ]
+          },
+          {
+            "code": "CSCE 434",
+            "title": "Compiler Design",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 435",
+            "title": "Parallel Computing",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 438",
+            "title": "Distributed Objects Programming",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313"
+            ]
+          },
+          {
+            "code": "CSCE 451",
+            "title": "Software Reverse Engineering",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 313"
+            ]
+          }
+        ],
+        "Information and Intelligent Systems": [
+          {
+            "code": "CSCE 305",
+            "title": "Computational Data Science",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 305",
+              "STAT 315",
+              "ECEN 360"
+            ]
+          },
+          {
+            "code": "CSCE 310",
+            "title": "Database Systems",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 221"
+            ]
+          },
+          {
+            "code": "CSCE 320",
+            "title": "Principles of Data Science",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 320",
+              "STAT 335"
+            ]
+          },
+          {
+            "code": "CSCE 420",
+            "title": "Artificial Intelligence",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 221"
+            ]
+          },
+          {
+            "code": "CSCE 421",
+            "title": "Machine Learning",
+            "hours": 3,
+            "prereqs": [
+              "CSCE 221",
+              "MATH 304",
+              "STAT 211"
+            ],
+            "matches": [
+              "CSCE 421",
+              "STAT 421",
+              "ECEN 427"
+            ]
+          },
+          {
+            "code": "CSCE 432",
+            "title": "Accessible Computing",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 436",
+            "title": "Computer-Human Interaction",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 439",
+            "title": "Data Analytics for Cybersecurity",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 441",
+            "title": "Computer Graphics",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 443",
+            "title": "Game Development",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 443",
+              "VIST 487"
+            ]
+          },
+          {
+            "code": "CSCE 444",
+            "title": "Structures of Interactive Information",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 445",
+            "title": "Computers and New Media",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 446",
+            "title": "Virtual Reality",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 446",
+              "VIST 477"
+            ]
+          },
+          {
+            "code": "CSCE 447",
+            "title": "Data Visualization",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 447",
+              "VIST 476"
+            ]
+          },
+          {
+            "code": "CSCE 448",
+            "title": "Computational Photography",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 449",
+            "title": "Applied Cryptography",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 450",
+            "title": "Computer Animation",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 452",
+            "title": "Robotics and Spatial Intelligence",
+            "hours": 3,
+            "prereqs": []
+          },
+          {
+            "code": "CSCE 470",
+            "title": "Information Storage and Retrieval",
+            "hours": 3,
+            "prereqs": []
+          }
+        ],
+        "Untracked": [
+          {
+            "code": "CSCE 402",
+            "title": "Law & Policy in Cybersecurity",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 402",
+              "CYBR 402",
+              "MARA 403"
+            ]
+          },
+          {
+            "code": "CSCE 477",
+            "title": "Cybersecurity Risk",
+            "hours": 3,
+            "prereqs": [],
+            "matches": [
+              "CSCE 477",
+              "CYBR 403"
+            ]
+          }
+        ]
+      },
+      "fastTrack": {
+        "pageUrl": "https://engineering.tamu.edu/cse/academics/fast-track.html",
+        "requestUrl": "https://docs.google.com/forms/d/e/1FAIpQLSeve6GtEn6J01Es9JCedGAwj-1AGe8b3F9LuEayQVQJsrbGsg/viewform?usp=sf_link",
+        "requestWindowNote": "The request form is open throughout the registration period.",
+        "placementNote": "Placement is not guaranteed. Students should register for a backup class. Placements are typically made two weeks before the semester begins.",
+        "gpaMinimum": 3.5,
+        "creditLimits": {
+          "computerScience": 12,
+          "computing": 12,
+          "computerEngineering": 9
+        },
+        "localRules": [
+          "Fast Track courses allow dual credit in both the undergraduate course and graduate course; there is no separate \"program\" to apply to.",
+          "Instructor approval is required.",
+          "Students must earn an A or B in the graduate course for the dual-credit request to be processed.",
+          "Graduate grade points count toward the graduate GPA. The credit also applies to the undergraduate degree but not the undergraduate GPA.",
+          "The local advising page states CSCE 629 requires CSCE 221 and CSCE 331 completed or concurrent."
+        ],
+        "requestSteps": [
+          "Complete the required paired-course prerequisites.",
+          "Meet the classification and GPA requirements.",
+          "Submit the CSCE graduate-course petition during registration.",
+          "Register for a backup class in case the placement request is not approved.",
+          "Check your schedule after approvals are processed."
+        ],
+        "coursePairs": [
+          {
+            "graduateCode": "CSCE 606",
+            "undergraduateCode": "CSCE 431",
+            "title": "Software Engineering"
+          },
+          {
+            "graduateCode": "CSCE 608",
+            "undergraduateCode": "CSCE 310",
+            "title": "Database Systems",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 611",
+            "undergraduateCode": "CSCE 410",
+            "title": "Operating Systems",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 612",
+            "undergraduateCode": "CSCE 463",
+            "title": "Applied Networks and Distributed Processing",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 614",
+            "undergraduateCode": "CSCE 469",
+            "title": "Computer Architecture"
+          },
+          {
+            "graduateCode": "CSCE 616",
+            "undergraduateCode": "CSCE 416",
+            "title": "Hardware Design Verification",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 625",
+            "undergraduateCode": "CSCE 420",
+            "title": "Artificial Intelligence"
+          },
+          {
+            "graduateCode": "CSCE 627",
+            "undergraduateCode": "CSCE 433",
+            "title": "Theory of Computability"
+          },
+          {
+            "graduateCode": "CSCE 629",
+            "undergraduateCode": "CSCE 411",
+            "title": "Analysis of Algorithms",
+            "specialRule": "Requires CSCE 221 and CSCE 331 completed or concurrent."
+          },
+          {
+            "graduateCode": "CSCE 633",
+            "undergraduateCode": "CSCE 421",
+            "title": "Machine Learning",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 640",
+            "undergraduateCode": "CSCE 440",
+            "title": "Quantum Algorithms"
+          },
+          {
+            "graduateCode": "CSCE 652",
+            "undergraduateCode": "CSCE 451",
+            "title": "Software Reverse Engineering",
+            "minCatalogTerm": "Spring 2025"
+          },
+          {
+            "graduateCode": "CSCE 653",
+            "undergraduateCode": "CSCE 442",
+            "title": "Computer Methods in Applied Sciences",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 656",
+            "undergraduateCode": "CSCE 445",
+            "title": "Computers and New Media"
+          },
+          {
+            "graduateCode": "CSCE 662",
+            "undergraduateCode": "CSCE 438",
+            "title": "Distributed Processing Systems",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 664",
+            "undergraduateCode": "CSCE 464",
+            "title": "Wireless and Mobile Systems",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 665",
+            "undergraduateCode": "CSCE 465",
+            "title": "Advanced Networking and Security",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 670",
+            "undergraduateCode": "CSCE 470",
+            "title": "Information Storage and Retrieval"
+          },
+          {
+            "graduateCode": "CSCE 671",
+            "undergraduateCode": "CSCE 436",
+            "title": "Computer-Human Interaction"
+          },
+          {
+            "graduateCode": "CSCE 679",
+            "undergraduateCode": "CSCE 447",
+            "title": "Data Visualization",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 702",
+            "undergraduateCode": "CSCE 402",
+            "title": "Law and Policy in Cybersecurity",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 703",
+            "undergraduateCode": "CSCE 477",
+            "title": "Cybersecurity Risk",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 704",
+            "undergraduateCode": "CSCE 439",
+            "title": "Data Analytics for Cybersecurity",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 713",
+            "undergraduateCode": "CSCE 413",
+            "title": "Software Security",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 735",
+            "undergraduateCode": "CSCE 435",
+            "title": "Parallel Computing"
+          },
+          {
+            "graduateCode": "CSCE 748",
+            "undergraduateCode": "CSCE 448",
+            "title": "Computational Photography",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 752",
+            "undergraduateCode": "CSCE 452",
+            "title": "Robotics and Spatial Intelligence",
+            "minCatalogTerm": "Fall 2023"
+          },
+          {
+            "graduateCode": "CSCE 765",
+            "undergraduateCode": "CSCE 465",
+            "title": "Network Security",
+            "minCatalogTerm": "Fall 2023"
+          }
+        ]
+      },
+      "emphasisArea": {
+        "title": "BS-CPSC Emphasis Area",
+        "summary": "The emphasis area requires 12 credits outside but supporting computing. It must be approved by the CSE undergraduate advising office through the degree planner.",
+        "rules": [
+          "Courses should support applications of computing.",
+          "Courses may come from multiple departments.",
+          "Courses normally must be at the 300, 400, or graduate level.",
+          "Up to 3 credits may be at the 100 or 200 level.",
+          "Foreign language courses may be at any level.",
+          "Courses may not be CSCE or ISTM unless cross-listed with another department, except ECEN.",
+          "Different versions of the same course may not both count."
+        ]
+      },
+      "highImpact": {
+        "title": "CSCE High-Impact Experience",
+        "summary": "All BS students in CSCE need a high-impact experience. Students complete the experience first and then register for CSCE 399 to satisfy the requirement.",
+        "approvedActivities": [
+          "Study abroad",
+          "CSCE honors courses",
+          "CSCE graduate courses",
+          "CSCE undergraduate research",
+          "Major-supporting co-ops and internships",
+          "Peer teaching or undergraduate TA work",
+          "TEES Bachelor's+ program",
+          "Department service leadership with faculty approval"
+        ],
+        "exclusions": [
+          "Minors do not count by themselves for CSCE 399.",
+          "Double majors and double degrees do not count by themselves for CSCE 399."
+        ]
+      }
+    }
+  ]
+}
