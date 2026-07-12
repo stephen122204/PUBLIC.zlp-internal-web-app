@@ -384,13 +384,16 @@ async function buildClassificationContext({ userId, cohortId, schedulingCycleId 
   }
 
   // Categorize planned courses
-  const completedCourses  = allPlannedCourses.filter((c) => c.status === 'completed' && c.passed !== false && !c.needsRetake);
+  const completedCourses  = allPlannedCourses.filter((c) => c.status === 'completed');
   const inProgressCourses = allPlannedCourses.filter((c) => c.status === 'in_progress');
   const plannedCourses    = allPlannedCourses.filter((c) => c.status === 'planned');
 
   const completedCodes  = buildCodeSet(completedCourses);
   const inProgressCodes = buildCodeSet(inProgressCourses);
   const plannedCodes    = buildCodeSet(plannedCourses);
+  // Transfer credit is earned elsewhere — only Texas A&M courses are scheduled,
+  // so any request matching a transfer course is classified not_applied.
+  const transferCodes   = buildCodeSet(allPlannedCourses.filter((c) => c.transfer === true));
 
   // Load degree graphs for each program in the academic profile
   const programGraphs  = {};
@@ -458,6 +461,7 @@ async function buildClassificationContext({ userId, cohortId, schedulingCycleId 
     completedCodes,
     inProgressCodes,
     plannedCodes,
+    transferCodes,
     courseRequests,
     graphWarnings,  // run-level only
   };
@@ -478,6 +482,7 @@ async function classifyCourseRequest(courseRequest, context) {
     completedCodes,
     inProgressCodes,
     plannedCodes,
+    transferCodes,
     exactChoiceGroupMap,
     // graphWarnings intentionally NOT used here — they are run-level only
   } = context;
@@ -509,6 +514,19 @@ async function classifyCourseRequest(courseRequest, context) {
       reason:   `${code} is excluded from the scheduling algorithm and will not be inserted.`,
       warnings,
       evidence: { ...evidence, source: 'excluded_course' },
+    };
+  }
+
+  // ── 0b. Transfer credit --> not_applied ──────────────────────────────────
+  // Transfer credit is earned outside Texas A&M; only A&M courses are scheduled,
+  // so a request matching a transfer course is never inserted, regardless of any
+  // other check.
+  if (transferCodes.has(code)) {
+    return {
+      systemClassification: 'not_applied',
+      reason:   `${code} is transfer credit; only Texas A&M courses are scheduled.`,
+      warnings,
+      evidence: { ...evidence, source: 'transfer_credit' },
     };
   }
 

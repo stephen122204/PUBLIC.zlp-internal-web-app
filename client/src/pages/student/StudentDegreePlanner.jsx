@@ -15,12 +15,17 @@ import AcademicProfileEditor from '../../components/AcademicProfileEditor';
 import { computeSemesterCreditHours } from '../../lib/degreePlanEvaluation';
 import { parseTranscriptFile } from '../../lib/transcriptPdfParser';
 
+// TAMU transfer-credit grades. A course is transfer credit iff its grade is one
+// of these — the transcript's section heading is NOT used (it mis-sections on
+// some PDFs and would flag every course as transfer).
+const TRANSFER_GRADES = new Set(['TA', 'TB', 'TC', 'TD', 'TR', 'TCR']);
+
 function newCourse(status = 'planned') {
   return {
     _key: Math.random().toString(36).slice(2),
     subject: '', number: '', code: '', title: '', creditHours: '',
-    honors: false,
-    status, passed: true, needsRetake: false, notes: '',
+    honors: false, transfer: false,
+    status, notes: '',
   };
 }
 
@@ -77,7 +82,7 @@ function getSubjectsOnce() {
   return _subjectsFetch;
 }
 
-function CourseRow({ course, onChange, onRemove, semesterStatus }) {
+function CourseRow({ course, onChange, onRemove }) {
   const [subjects, setSubjects]           = useState([]);
   const [subjectQuery, setSubjectQuery]   = useState(course.subject ?? '');
   const [subjectOpen, setSubjectOpen]     = useState(false);
@@ -238,17 +243,15 @@ function CourseRow({ course, onChange, onRemove, semesterStatus }) {
           background: (!!course.number && !isVariableHoursCourse(course.number)) ? 'var(--color-bg-muted,#f9fafb)' : undefined,
           cursor: (!!course.number && !isVariableHoursCourse(course.number)) ? 'default' : undefined }}
       />
-      <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, width: 36, flexShrink: 0 }}>
-        <input type="checkbox" checked={course.honors} onChange={(e) => onChange({ ...course, honors: e.target.checked })} /> Hon
+      <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, width: 60, flexShrink: 0 }}>
+        <input type="checkbox" checked={course.honors} onChange={(e) => onChange({ ...course, honors: e.target.checked })} /> Honors
       </label>
-      {semesterStatus === 'completed' && (
-        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, width: 60, flexShrink: 0, color: course.needsRetake ? '#c00' : undefined }}>
-          <input
-            type="checkbox" checked={course.needsRetake}
-            onChange={(e) => onChange({ ...course, needsRetake: e.target.checked, passed: !e.target.checked })}
-          /> Retake
-        </label>
-      )}
+      <label
+        style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, width: 68, flexShrink: 0 }}
+        title="Transfer credit (e.g. TA, TB, TCR). Informational only — does not affect classification."
+      >
+        <input type="checkbox" checked={!!course.transfer} onChange={(e) => onChange({ ...course, transfer: e.target.checked })} /> Transfer
+      </label>
       <button
         type="button" onClick={onRemove}
         style={{ background: 'none', border: 'none', color: 'var(--color-error,#c00)', cursor: 'pointer', fontSize: 16, padding: '0 4px', width: 20, flexShrink: 0 }}
@@ -358,8 +361,8 @@ function SemesterCard({ semester, termOptions = [], onChange, onRemove, expanded
             <span style={{ width: 52, flexShrink: 0 }}>Number</span>
             <span style={{ flex: '1 1 160px', minWidth: 120 }}>Title</span>
             <span style={{ width: 36, flexShrink: 0 }}>Hrs</span>
-            <span style={{ width: 36, flexShrink: 0 }}>Hon</span>
-            {semester.status === 'completed' && <span style={{ width: 60, flexShrink: 0 }}>Retake</span>}
+            <span style={{ width: 60, flexShrink: 0 }}>Honors</span>
+            <span style={{ width: 68, flexShrink: 0 }}>Transfer</span>
             <span style={{ width: 20, flexShrink: 0 }} />
           </div>
 
@@ -369,7 +372,6 @@ function SemesterCard({ semester, termOptions = [], onChange, onRemove, expanded
               course={c}
               onChange={(u) => updateCourse(idx, u)}
               onRemove={() => removeCourse(idx)}
-              semesterStatus={semester.status}
             />
           ))}
 
@@ -454,19 +456,18 @@ function transcriptToSemesters(parsed, catalogMap, termOptions = []) {
       status: grp.hasInProgress ? 'in_progress' : 'completed',
       notes: '',
         courses: grp.courses.map((c) => {
-        // Accepted passing grades — anything not in this set (or missing for completed) is ignored or flagged.
-        const PASSING = new Set(['A', 'B', 'C', 'S', 'P', 'CR', 'TCR', 'TA', 'TB', 'TC', 'TR', 'TS']);
-        // For completed courses: skip entirely if no recognized passing grade and it's not D/F/Q.
-        // W (Withdrawal) and I (Incomplete) have no grade value — skip them.
         const isInProgress = c.status === 'in-progress';
-        const NOT_COUNTED  = new Set(['D', 'F', 'Q']);
+        // Grades that did NOT complete the course — skip them entirely so they
+        // never land in the completed section: failed (F/U), Q-dropped (Q),
+        // withdrawn (W), and incomplete (I). D counts as a pass. If a course was
+        // failed then retaken, only the passing attempt populates.
+        const NOT_COMPLETED = new Set(['F', 'U', 'Q', 'W', 'I']);
         // Validate subject (2-5 uppercase letters) and number (3 digits + optional letter).
         // Skip anything that doesn't match — these are noise rows from the PDF.
         if (!/^[A-Z]{2,5}$/.test(c.subject) || !/^\d{3}[A-Z]?$/.test(c.number)) return null;
         if (!isInProgress) {
-          if (!c.grade || c.grade === 'W' || c.grade === 'I') return null;
+          if (!c.grade || NOT_COMPLETED.has(c.grade)) return null;
         }
-        const notCounted = !isInProgress && NOT_COUNTED.has(c.grade);
         return {
           _key: Math.random().toString(36).slice(2),
           subject: c.subject,
@@ -475,9 +476,10 @@ function transcriptToSemesters(parsed, catalogMap, termOptions = []) {
           title: catalogMap?.get(c.code)?.title ?? '',
           creditHours: (() => { const ch = catalogMap?.get(c.code)?.creditHours ?? null; return (ch != null && ch > 0) ? ch : (c.credits || ''); })(),
           honors: false,
+          // Transfer credit — flagged only by a transfer grade (TA, TB, TC, TR,
+          // TCR). Informational only.
+          transfer: TRANSFER_GRADES.has(c.grade),
           status: isInProgress ? 'in_progress' : 'completed',
-          passed: !notCounted,
-          needsRetake: notCounted,
           notes: '',
           source: 'transcript_import',
         };
@@ -544,7 +546,6 @@ function TranscriptImportModal({ parsed, termOptions, onClose, onConfirm }) {
                         <span style={{ minWidth: 36, textAlign: 'right', color: c.creditHours != null && c.creditHours !== '' ? 'var(--color-text)' : 'var(--color-text-muted)', fontWeight: c.creditHours != null && c.creditHours !== '' ? 600 : 400 }}>
                           {c.creditHours != null && c.creditHours !== '' ? `${c.creditHours} hr${c.creditHours !== 1 ? 's' : ''}` : '—'}
                         </span>
-                        {c.needsRetake && <span style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 3, padding: '0 5px', fontSize: 11 }}>Not Counted</span>}
                       </div>
                     ))}
                   </div>
@@ -749,9 +750,8 @@ export default function StudentDegreePlanner() {
             creditHours: c.creditHours !== '' && c.creditHours != null ? Number(c.creditHours) : null,
             status: ['completed', 'in_progress', 'planned'].includes(c.status) ? c.status : s.status,
             honors: !!c.honors,
+            transfer: !!c.transfer,
             source: c.source ?? 'manual',
-            passed: c.passed !== false,
-            needsRetake: !!c.needsRetake,
             notes: c.notes ?? '',
           })),
       }));

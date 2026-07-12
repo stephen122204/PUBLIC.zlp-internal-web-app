@@ -846,13 +846,8 @@ function DegreePlanTab({ studentId, cohortId, academicProfile: profileFromParent
                           <td style={{ padding: '5px 8px', color: '#374151' }}>{c.title || <em style={{ color: 'var(--color-text-muted)' }}>Untitled</em>}</td>
                           <td style={{ padding: '5px 8px', color: 'var(--color-text-muted)', width: 40, textAlign: 'right' }}>{c.creditHours != null ? `${c.creditHours}h` : ''}</td>
                           <td style={{ padding: '5px 8px', width: 60 }}>
-                            {c.transfer && <span style={{ fontSize: 10, background: '#eff6ff', color: '#1d4ed8', borderRadius: 3, padding: '1px 5px', marginRight: 3 }}>Trans</span>}
-                            {c.honors   && <span style={{ fontSize: 10, background: '#faf5ff', color: '#6b21a8', borderRadius: 3, padding: '1px 5px' }}>Hon</span>}
-                          </td>
-                          <td style={{ padding: '5px 8px', width: 60 }}>
-                            {c.needsRetake && (
-                              <span style={{ fontSize: 10, background: '#fef2f2', color: '#b91c1c', borderRadius: 3, padding: '1px 5px' }}>Retake</span>
-                            )}
+                            {c.transfer && <span style={{ fontSize: 10, background: '#eff6ff', color: '#1d4ed8', borderRadius: 3, padding: '1px 5px', marginRight: 3 }}>Transfer</span>}
+                            {c.honors   && <span style={{ fontSize: 10, background: '#faf5ff', color: '#6b21a8', borderRadius: 3, padding: '1px 5px' }}>Honors</span>}
                           </td>
                         </tr>
                       ))}

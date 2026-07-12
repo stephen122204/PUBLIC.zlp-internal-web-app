@@ -539,14 +539,18 @@ function SchedulingCyclesSection({ cohortId, termOptions, isArchived }) {
                   <td>{c.submissionDeadline ? new Date(c.submissionDeadline).toLocaleDateString() : '—'}</td>
                   <td><span style={cycleBadgeStyle(displayStatus)}>{displayStatus}</span></td>
                   <td>
-                    {c.activeForStudents
+                    {/* A cycle only counts as active while it is effectively open —
+                        a past-deadline cycle reads as closed, so it isn't "Yes". */}
+                    {c.activeForStudents && displayStatus === 'open'
                       ? <span style={{ ...cycleBadgeStyle('open'), background: '#dbeafe', color: '#1e40af' }}>Yes</span>
                       : <span className="text-muted">—</span>}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {/* Activate — draft or closed */}
-                      {c.status !== 'open' && (
+                      {/* Activate — anything not effectively open (draft, closed, or
+                          deadline-expired). Re-activating a past-deadline cycle pushes
+                          the deadline out a day on the server so it reopens for edits. */}
+                      {displayStatus !== 'open' && (
                         <button
                           className="btn-primary btn-sm"
                           style={{ fontSize: 11, padding: '2px 8px' }}
@@ -556,8 +560,8 @@ function SchedulingCyclesSection({ cohortId, termOptions, isArchived }) {
                           Activate
                         </button>
                       )}
-                      {/* Close — open cycles, including deadline-expired */}
-                      {c.status === 'open' && (
+                      {/* Close — only cycles that are effectively open right now */}
+                      {displayStatus === 'open' && (
                         <button
                           className="btn-secondary btn-sm"
                           style={{ fontSize: 11, padding: '2px 8px' }}

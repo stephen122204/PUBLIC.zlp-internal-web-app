@@ -1,13 +1,14 @@
 'use strict';
 /**
- * Degree plan import — student route.
+ * Howdy Degree Plan JSON import — student route.
  *
  * POST /api/student/howdy-import
  *
- * Accepts a student-supplied "degreePlanCourses" JSON payload and parses it
- * into our StudentSemesterPlan / StudentPlannedCourse schema.
+ * Accepts a "degreePlanCourses" JSON payload that the student copies from
+ * the Howdy portal (network tab or page source).  Parses it into our
+ * StudentSemesterPlan / StudentPlannedCourse schema.
  *
- * Source-of-truth rules:
+ * Source-of-truth rules (per architecture decision):
  *  - This import is source-of-truth ONLY for the student's personal plan state.
  *  - It is NOT source-of-truth for degree requirements.
  *  - Grades are reduced to pass/fail/in-progress/planned — raw grades are not stored.
@@ -29,6 +30,10 @@ const router = express.Router();
 // Helpers
 // ---------------------------------------------------------------------------
 
+// TAMU transfer-credit grades — a course is transfer credit iff its grade is one
+// of these. Informational only; does not affect classification.
+const TRANSFER_GRADES = new Set(['TA', 'TB', 'TC', 'TD', 'TR', 'TCR']);
+
 /**
  * Normalize a course code from Howdy-style subject + catalogNumber fields.
  * Returns "SUBJ NNN" or null.
@@ -41,22 +46,23 @@ function normCode(subject, number) {
 }
 
 /**
- * Map a Howdy grade string to our simple status + passed fields.
+ * Map a Howdy grade string to a simple status.
  * Grade buckets:
- *   pass (A, B, C, D, P, S)  --> completed, passed: true
- *   fail (F, U)               --> completed, passed: false, needsRetake: true
- *   withdraw (W, WP, WF)      --> SKIP
- *   in-progress (IP, RP, I)   --> in_progress
- *   planned / null / blank    --> planned
+ *   withdraw / fail / Q-drop (W, WP, WF, F, U, NC, Q, …) --> SKIP (not completed)
+ *   in-progress (IP, RP, I)                              --> in_progress
+ *   planned / null / blank                               --> planned
+ *   anything else (A, B, C, D, …)                        --> completed (D is a pass)
+ * Failed/Q-dropped attempts are skipped entirely; if the course was retaken, only
+ * the passing attempt lands in the completed section.
  */
 function mapGradeToStatus(gradeRaw) {
   const g = String(gradeRaw ?? '').trim().toUpperCase();
-  if (!g || g === 'PLANNED' || g === 'PENDING') return { status: 'planned', passed: true, needsRetake: false };
-  if (/^(IP|RP|I|IN PROGRESS)$/.test(g))       return { status: 'in_progress', passed: true, needsRetake: false };
-  if (/^(W|WP|WF|WN|WNC)$/.test(g))            return null;  // withdrawn — skip
-  if (/^(F|U|NC)$/.test(g))                     return { status: 'completed', passed: false, needsRetake: true };
-  // Any other grade (A, A-, B, etc.) counts as passing
-  return { status: 'completed', passed: true, needsRetake: false };
+  if (!g || g === 'PLANNED' || g === 'PENDING') return { status: 'planned' };
+  if (/^(IP|RP|I|IN PROGRESS)$/.test(g))       return { status: 'in_progress' };
+  // Withdrawn, failed, or Q-dropped — the course was not completed, so skip it.
+  if (/^(W|WP|WF|WN|WNC|F|U|NC|Q)$/.test(g))    return null;
+  // Any other grade (A, B, C, D, …) counts as a completed pass.
+  return { status: 'completed' };
 }
 
 /**
@@ -184,6 +190,8 @@ router.post('/', resolveStudentContext, async (req, res) => {
         creditHours,
         termCode,
         termDesc,
+        // Transfer credit — a transfer grade (TA, TB, TC, TR, TCR). Informational only.
+        transfer: TRANSFER_GRADES.has(String(gradeRaw ?? '').trim().toUpperCase()),
         ...gradeResult,
       });
     }
@@ -260,10 +268,8 @@ router.post('/', resolveStudentContext, async (req, res) => {
           title:       pc.title,
           creditHours: pc.creditHours,
           status:      pc.status,
-          passed:      pc.passed,
-          needsRetake: pc.needsRetake,
           source:      'transcript_import',
-          transfer:    false,
+          transfer:    !!pc.transfer,
           honors:      false,
         });
         courseCount++;

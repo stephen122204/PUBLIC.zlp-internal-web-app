@@ -114,8 +114,6 @@ function shapeCourse(c) {
     honors:           c.honors ?? false,
     writingRequirement: c.writingRequirement ?? '',
     source:           c.source ?? 'manual',
-    passed:           c.passed ?? true,
-    needsRetake:      c.needsRetake ?? false,
     notes:            c.notes ?? '',
   };
 }
@@ -224,8 +222,6 @@ router.put('/semesters', resolveStudentContext, async (req, res) => {
               honors:      !!c.honors,
               writingRequirement: c.writingRequirement ? String(c.writingRequirement).slice(0, 100) : '',
               source:      ['manual','screenshot_import','transcript_import','admin_edit','developer_edit'].includes(c.source) ? c.source : 'manual',
-              passed:      c.passed !== false,
-              needsRetake: !!c.needsRetake,
               notes:       c.notes ? String(c.notes).slice(0, 500) : '',
             }], { session });
           }
@@ -418,7 +414,6 @@ router.post('/confirm-import', resolveStudentContext, async (req, res) => {
                 transfer: !!c.transfer, honors: !!c.honors,
                 writingRequirement: c.writingRequirement ? String(c.writingRequirement).slice(0, 100) : '',
                 source: ['manual','screenshot_import','transcript_import','admin_edit','developer_edit'].includes(c.source) ? c.source : 'transcript_import',
-                passed: c.passed !== false, needsRetake: !!c.needsRetake,
                 notes: c.notes ? String(c.notes).slice(0, 500) : '',
               }], { session });
             }

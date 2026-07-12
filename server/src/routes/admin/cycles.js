@@ -113,11 +113,29 @@ router.post('/cycles/:cycleId/activate', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Cannot activate an archived cycle. Restore it first.' });
     }
 
-    // Deactivate all other cycles for this cohort
+    // Only one cycle per cohort may be active/open at a time — deactivate every
+    // other cycle and close any that were still open.
     await SchedulingCycle.updateMany(
       { cohortId: cycle.cohortId, _id: { $ne: cycle._id } },
       { activeForStudents: false }
     );
+    await SchedulingCycle.updateMany(
+      { cohortId: cycle.cohortId, _id: { $ne: cycle._id }, status: 'open' },
+      { status: 'closed' }
+    );
+
+    // If the deadline has already passed (or was never set), push it out to one
+    // day from now so re-activating a closed cycle genuinely reopens it for edits.
+    const now = new Date();
+    if (!cycle.submissionDeadline || new Date(cycle.submissionDeadline) < now) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      cycle.submissionDeadline = tomorrow;
+    }
+    // Don't leave the open date blank or in the future after reactivating.
+    if (!cycle.submissionOpenAt || new Date(cycle.submissionOpenAt) > now) {
+      cycle.submissionOpenAt = now;
+    }
 
     cycle.activeForStudents = true;
     cycle.status = 'open';
@@ -160,15 +178,32 @@ router.post('/cycles/:cycleId/reopen', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Cannot reopen an archived cycle. Restore it first.' });
     }
 
-    // Deactivate all other cycles for this cohort
+    // Only one cycle per cohort may be active/open at a time — deactivate every
+    // other cycle and close any that were still open.
     await SchedulingCycle.updateMany(
       { cohortId: cycle.cohortId, _id: { $ne: cycle._id } },
       { activeForStudents: false }
     );
+    await SchedulingCycle.updateMany(
+      { cohortId: cycle.cohortId, _id: { $ne: cycle._id }, status: 'open' },
+      { status: 'closed' }
+    );
+
+    // Push an expired/blank deadline out a day so the reopened cycle is editable.
+    const now = new Date();
+    const update = { status: 'open', activeForStudents: true };
+    if (!cycle.submissionDeadline || new Date(cycle.submissionDeadline) < now) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      update.submissionDeadline = tomorrow;
+    }
+    if (!cycle.submissionOpenAt || new Date(cycle.submissionOpenAt) > now) {
+      update.submissionOpenAt = now;
+    }
 
     const updated = await SchedulingCycle.findByIdAndUpdate(
       req.params.cycleId,
-      { status: 'open', activeForStudents: true },
+      update,
       { new: true }
     );
     return res.json({ cycle: updated });

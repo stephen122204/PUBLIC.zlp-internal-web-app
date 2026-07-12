@@ -9,6 +9,7 @@ import {
   getAlgorithmDebugInput,
 } from '../../api';
 import api from '../../api/client';
+import CourseSectionsViewerModal from '../../components/CourseSectionsViewerModal';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -353,7 +354,7 @@ function HeatmapGrid({ heatmap, windows, onCellClick, selectedTime, selectedDay,
 // ---------------------------------------------------------------------------
 // WindowDetailModal — popup when a heatmap cell or window row is clicked
 // ---------------------------------------------------------------------------
-function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility = true, runMode = 'required_only' }) {
+function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, checkFeasibility = true, runMode = 'required_only' }) {
   useEffect(() => {
     if (!win) return;
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -367,6 +368,8 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility =
   const [debugOpen,         setDebugOpen]         = useState(false);
   const [hideSecondaryOnly, setHideSecondaryOnly] = useState(false);
   const [hideSectionChoice, setHideSectionChoice] = useState(false);
+  // Course code whose sections are being viewed in the read-only section popup.
+  const [viewCourse, setViewCourse] = useState(null);
 
   if (!win) return null;
 
@@ -580,10 +583,13 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility =
           {win.conflictCourses?.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {win.conflictCourses.map((c) => (
-                <div key={c.code} style={{
-                  background: '#fef2f2', border: '1px solid #fecaca',
-                  borderRadius: 6, padding: '8px 12px', fontSize: 13,
-                }}>
+                <div key={c.code}
+                  onClick={() => setViewCourse({ code: c.code, title: c.title })}
+                  title="View sections & times"
+                  style={{
+                    background: '#fef2f2', border: '1px solid #fecaca',
+                    borderRadius: 6, padding: '8px 12px', fontSize: 13, cursor: 'pointer',
+                  }}>
                   <div style={{ fontWeight: 600, marginBottom: 2 }}>
                     {c.code}
                     {c.title && <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>— {c.title}</span>}
@@ -656,10 +662,13 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility =
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {visibleCourses.map((c) => (
-                  <div key={c.code} style={{
-                    background: '#fffbeb', border: '1px solid #fde68a',
-                    borderRadius: 6, padding: '7px 12px', fontSize: 13,
-                  }}>
+                  <div key={c.code}
+                    onClick={() => setViewCourse({ code: c.code, title: c.title })}
+                    title="View sections & times"
+                    style={{
+                      background: '#fffbeb', border: '1px solid #fde68a',
+                      borderRadius: 6, padding: '7px 12px', fontSize: 13, cursor: 'pointer',
+                    }}>
                     <div style={{ fontWeight: 600, marginBottom: 2 }}>
                       {c.code}
                       {c.title && <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>— {c.title}</span>}
@@ -722,7 +731,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility =
                   {[
                     { label: 'Students affected',  value: win.preferredHardConflictImpact.preferredAffectedStudents, color: '#2563eb', always: true },
                     { label: 'Impossible courses', value: win.preferredHardConflictImpact.preferredGenuineImpossibleCourses ?? win.preferredHardConflictImpact.preferredHardConflicts, color: '#d97706', always: true },
-                    { label: 'Direct conflict',    value: win.preferredHardConflictImpact.preferredGenuineDirectConflicts ?? win.preferredHardConflictImpact.preferredDirectConflictRequests, color: '#dc2626' },
+                    { label: 'Direct conflict',    value: win.preferredHardConflictImpact.preferredGenuineDirectConflicts ?? win.preferredHardConflictImpact.preferredDirectConflictRequests, color: '#dc2626', always: true },
                     { label: 'Self-conflict',      value: win.preferredHardConflictImpact.preferredSelfConflictStudents, color: '#d97706' },
                     { label: '\u26a0 Unknown',     value: win.preferredHardConflictImpact.preferredFeasibilityUnknownStudents, color: '#b45309' },
                     // Last + lowest priority: students whose impossibility is their own
@@ -772,8 +781,14 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility =
                         // subset of sections (when others existed) on any conflict? If so,
                         // the conflict is driven by their own choice, not unavoidable.
                         const restricted = s.impacts.some((i) => i.narrowedByChoice);
+                        // First conflicting course that has a code — clicking anywhere in
+                        // the box opens its sections (self-conflict/unknown impacts have none).
+                        const boxCourse = s.impacts.find((i) => i.courseCode);
                         return (
-                        <div key={s.studentEmail ?? s.studentName} style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px' }}>
+                        <div key={s.studentEmail ?? s.studentName}
+                          onClick={boxCourse ? () => setViewCourse({ code: boxCourse.courseCode, title: boxCourse.courseTitle }) : undefined}
+                          title={boxCourse ? 'View sections & times' : undefined}
+                          style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px', cursor: boxCourse ? 'pointer' : undefined }}>
                           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
                             {s.studentName}
                             {restricted ? (
@@ -800,23 +815,30 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility =
                                   </span>
                                 ))}
                               </>
-                            ) : (
-                              s.studentEmail && (
-                                <span style={{ fontWeight: 400, color: '#6b7280', fontSize: 12 }}>{s.studentEmail}</span>
-                              )
-                            )}
+                            ) : null}
                           </div>
                           {s.impacts.map((impact, i) => (
-                            <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 6 }}>
+                            <div key={i}
+                              onClick={impact.courseCode ? (e) => { e.stopPropagation(); setViewCourse({ code: impact.courseCode, title: impact.courseTitle }); } : undefined}
+                              style={{ fontSize: 12, color: '#374151', marginBottom: 6, cursor: impact.courseCode ? 'pointer' : undefined }}>
                               {/* Line 1: badge · classification · course — title */}
                               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                                <span style={{
-                                  background: impact.impactType === 'preferred_direct_conflict' ? '#fee2e2' : impact.impactType === 'preferred_self_conflict' ? '#fef9c3' : '#f3f4f6',
-                                  color: impact.impactType === 'preferred_direct_conflict' ? '#dc2626' : impact.impactType === 'preferred_self_conflict' ? '#d97706' : '#6b7280',
-                                  borderRadius: 3, padding: '1px 6px', fontSize: 10,
-                                }}>
-                                  {impact.impactType === 'preferred_direct_conflict' ? 'Direct conflict' : impact.impactType === 'preferred_self_conflict' ? 'Self-conflict' : 'Unknown'}
-                                </span>
+                                {(() => {
+                                  // A narrowed-by-choice direct conflict is NOT a genuine
+                                  // direct conflict (the course is still schedulable on all
+                                  // sections). It's counted under "Restricted students", not
+                                  // "Direct conflict" — so badge it as a section-choice
+                                  // conflict (violet) to match, rather than red "Direct conflict".
+                                  const isGenuineDirect = impact.impactType === 'preferred_direct_conflict' && !impact.narrowedByChoice;
+                                  const isSectionChoice = impact.impactType === 'preferred_direct_conflict' && impact.narrowedByChoice;
+                                  const isSelf          = impact.impactType === 'preferred_self_conflict';
+                                  const bg    = isGenuineDirect ? '#fee2e2' : isSectionChoice ? '#ede9fe' : isSelf ? '#fef9c3' : '#f3f4f6';
+                                  const color = isGenuineDirect ? '#dc2626' : isSectionChoice ? '#6d28d9' : isSelf ? '#d97706' : '#6b7280';
+                                  const text  = isGenuineDirect ? 'Direct conflict' : isSectionChoice ? 'Section conflict' : isSelf ? 'Self-conflict' : 'Unknown';
+                                  return (
+                                    <span style={{ background: bg, color, borderRadius: 3, padding: '1px 6px', fontSize: 10 }}>{text}</span>
+                                  );
+                                })()}
                                 {impact.classification && (
                                   <span
                                     title={impact.classification === 'required'
@@ -977,6 +999,14 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, checkFeasibility =
           Low-risk skipped cases are treated as schedulable. Only confirmed <em>Self-conflict</em> and <em>Unknown — solver limit</em> results count against window scoring.
         </p>
       </div>
+      {viewCourse && (
+        <CourseSectionsViewerModal
+          code={viewCourse.code}
+          title={viewCourse.title}
+          termCode={termCode}
+          onClose={() => setViewCourse(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1331,7 +1361,7 @@ function ResultsPanel({ run, cohortId, cycleId }) {
     <div style={{ minWidth: 0, width: '100%' }}>
       {/* Modal */}
       {modalWin && (
-        <WindowDetailModal win={modalWin} onClose={() => setModalWin(null)} cohortId={cohortId} cycleId={cycleId} checkFeasibility={checkFeasibility} runMode={run.mode} />
+        <WindowDetailModal win={modalWin} onClose={() => setModalWin(null)} cohortId={cohortId} cycleId={cycleId} termCode={run.parameters?.termCode ?? null} checkFeasibility={checkFeasibility} runMode={run.mode} />
       )}
 
       {/* Summary cards */}

@@ -50,8 +50,6 @@ function shapeCourse(c) {
     honors:           c.honors ?? false,
     writingRequirement: c.writingRequirement ?? '',
     source:           c.source ?? 'manual',
-    passed:           c.passed ?? true,
-    needsRetake:      c.needsRetake ?? false,
     notes:            c.notes ?? '',
   };
 }
@@ -157,7 +155,6 @@ router.put('/students/:studentId/degree-plan', requireAdmin, async (req, res) =>
               transfer: !!c.transfer, honors: !!c.honors,
               writingRequirement: c.writingRequirement ? String(c.writingRequirement).slice(0, 100) : '',
               source: src,
-              passed: c.passed !== false, needsRetake: !!c.needsRetake,
               notes: c.notes ? String(c.notes).slice(0, 500) : '',
               updatedBy: editorId,
             }], { session });

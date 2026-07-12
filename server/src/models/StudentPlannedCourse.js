@@ -16,8 +16,6 @@ const schema = new mongoose.Schema(
     honors:           { type: Boolean, default: false },
     writingRequirement: { type: String, default: '' },
     source:           { type: String, enum: ['manual', 'screenshot_import', 'transcript_import', 'admin_edit', 'developer_edit'], default: 'manual' },
-    passed:           { type: Boolean, default: true },
-    needsRetake:      { type: Boolean, default: false },
     notes:            { type: String, default: '' },
     updatedBy:        { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
