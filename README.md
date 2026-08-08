@@ -101,7 +101,7 @@ The algorithm is only useful if the data feeding it is trustworthy. Three compon
 <p align="center">
   <img src="zlp-photos-new/flowchart-my-plan.png" width="850" alt="My Plan flowchart for a double major with a minor, showing the student's own semester-by-semester courses" />
 </p>
-<p align="center"><em>My Plan shows the courses the student actually added in their degree planner, laid out by the semester they placed them in, for the student to toggle around with – and the same click/<code>A</code>/<code>B</code> functionality holds as it does for Recommended. Recommended is built from the primary major alone, so it names just that; My Plan spans everything the student is enrolled in, so the header lists every major and then the minors.</em></p>
+<p align="center"><em>My Plan shows the courses the student actually added in their degree planner, laid out by the semester they placed them in, for the student to toggle around with. The same click/<code>A</code>/<code>B</code> functionality holds as it does for Recommended. Recommended is built from the primary major alone, so it names just that; My Plan spans everything the student is enrolled in, so the header lists every major and then the minors.</em></p>
 
 ---
 
