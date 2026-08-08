@@ -89,14 +89,19 @@ The algorithm is only useful if the data feeding it is trustworthy. Three compon
 <p align="center"><em>Clicking CHEN 205 highlights its prerequisites (blue) and everything that depends on it (purple).</em></p>
 
 <p align="center">
-  <img src="zlp-photos-new/flowchart-full-chain.png" width="850" alt="Degree flowchart showing the full transitive dependency chain leading into CHEM 322" />
+  <img src="zlp-photos-new/flowchart-full-chain.png" width="850" alt="Degree flowchart showing the full transitive dependency chain running through CHEN 320" />
 </p>
-<p align="center"><em>Pressing <code>A</code> expands the full transitive chain. The image shows every course that ultimately feeds into CHEM 322.</em></p>
+<p align="center"><em>Pressing <code>A</code> expands the full transitive chain. Here the image shows every course feeding in and out along the path through CHEN 320 – blue is everything upstream that has to be cleared to reach it, running back through CHEN 205 and CHEN 204 to the chemistry and math sequence in semester 1, and purple is everything downstream that it gates. This is why a course like CHEN 482 lights up even though CHEN 320 is nowhere in its prerequisite list: CHEN 482 needs CHEN 364, CHEN 364 needs CHEN 320, and the chain carries the dependency the whole way out.</em></p>
 
 <p align="center">
   <img src="zlp-photos-new/flowchart-bottleneck.png" width="850" alt="Degree flowchart highlighting the degree bottleneck: the longest remaining prerequisite chain" />
 </p>
 <p align="center"><em>Pressing <code>B</code> traces the degree bottleneck. Here an 8-course chain spanning ~7 semesters that gates graduation. There are 40 possible paths the DAG detects</em></p>
+
+<p align="center">
+  <img src="zlp-photos-new/flowchart-my-plan.png" width="850" alt="My Plan flowchart for a double major with a minor, showing the student's own semester-by-semester courses" />
+</p>
+<p align="center"><em>My Plan shows the courses the student actually added in their degree planner, laid out by the semester they placed them in, for the student to toggle around with – and the same click/<code>A</code>/<code>B</code> functionality holds as it does for Recommended. Recommended is built from the primary major alone, so it names just that; My Plan spans everything the student is enrolled in, so the header lists every major and then the minors.</em></p>
 
 ---
 
@@ -109,7 +114,7 @@ ZLP_APP/
 ├── client/          Vite + React frontend (port 5173)
 └── server/          Express + Node backend (port 3001)
     └── src/
-        ├── models/  14 Mongoose schemas
+        ├── models/  15 Mongoose schemas
         ├── routes/  Admin, student, and developer API routes
         └── lib/     Algorithm, classifier, degree graphs, course search, grade data
 ```
@@ -124,8 +129,8 @@ ZLP_APP/
 **Authentication** is Google OAuth via Passport, backed by server-side sessions (`express-session` + `connect-mongo`) rather than client-stored tokens. Emails matching `ADMIN_EMAILS` land on the admin portal; other `@tamu.edu` accounts are students (who must join a cohort via a cohort's join code); non-`@tamu.edu` accounts are denied access to the software suite.
 
 **Caching.** Two independent caching layers keep the app responsive without serving stale data:
-- *Course sections* (`lib/courseSections.js`): an in-memory, per-term TTL cache in front of live Howdy fetches, with stale-while-revalidate. Meaning, an expired entry is still served immediately while a background refresh runs, so the UI never blocks on a slow upstream request.
-- *Degree requirement graphs* (`lib/degreeGraphBuilder.js`): a four-tier fallback chain ordered by speed. The order goes as follows: in-memory cache (10-minute TTL) → MongoDB → a pre-built static JSON snapshot → a live catalog scrape as last resort. This keeps classification fast and resilient even if the database or the university catalog is temporarily unreachable.
+- *Course sections* (`lib/courseSections.js`): a three-tier, per-term chain — in-memory → MongoDB (`TermSectionCache`) → a live Howdy fetch. Howdy returns the entire term unfiltered (~23 MB), and in a serverless deployment an in-memory cache alone is wiped on every cold start, so that fetch was repeating constantly. Persisting the mapped rows in MongoDB means the expensive fetch happens roughly once per term across all instances instead of once per instance. Raw fetches still use stale-while-revalidate, so an expired entry is served immediately while a refresh runs and the UI never blocks on a slow upstream request.
+- *Degree requirement graphs* (`lib/degreeGraphBuilder.js`): a four-tier fallback chain ordered by speed. The order goes as follows: in-memory cache (10-minute TTL) → MongoDB → a pre-built static JSON snapshot → a live catalog scrape as last resort. This keeps classification fast and resilient even if the database or the university catalog is temporarily unreachable. The client caches the resolved graph too (5-minute TTL), since it is the heaviest fetch on the page and is shared by the flowchart and planner tabs, so switching between them does not re-hit the server.
 
 ---
 
@@ -142,7 +147,7 @@ ZLP_APP/
 <p align="center">
   <img src="zlp-photos-new/student-review.png" width="850" alt="Student review modal with per-course classification overrides" />
 </p>
-<p align="center"><em>Reviewing one student's submitted requests with the system's classification beside the final (overridable) one, missing-prerequisite warnings, and a credit-hour override – all in one place!</em></p>
+<p align="center"><em>Reviewing one student's submitted requests with the system's classification beside the final (overridable) one, a credit-hour override, and a banner that flags when the student has edited their draft since last submitting – those edits stay invisible here until they re-submit, so the director is never looking at half-changed data. The tabs across the top pull up that same student's degree plan and flowchart without leaving the modal.</em></p>
 
 
 <p align="center">
