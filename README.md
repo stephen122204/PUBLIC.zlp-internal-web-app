@@ -1,4 +1,4 @@
-# Zachry Leadership Program Reverse Scheduling Engine + Student Scheduling Software Suite
+# ZLP Flow: A Constraint-Based Reverse-Scheduling Engine and Interactive Degree Planner
 
 <p align="center">
   <img src="Zachry-22August2018.jpg" width="850" alt="Zachry Engineering Education Complex, Texas A&M University" />
