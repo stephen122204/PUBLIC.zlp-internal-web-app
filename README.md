@@ -91,7 +91,7 @@ The algorithm is only useful if the data feeding it is trustworthy. Three compon
 <p align="center">
   <img src="zlp-photos-new/flowchart-full-chain.png" width="850" alt="Degree flowchart showing the full transitive dependency chain running through CHEN 320" />
 </p>
-<p align="center"><em>Pressing <code>A</code> expands the full transitive chain. Here the image shows every course feeding in and out along the path through CHEN 320 – blue is everything upstream that has to be cleared to reach it, running back through CHEN 205 and CHEN 204 to the chemistry and math sequence in semester 1, and purple is everything downstream that it gates. This is why a course like CHEN 482 lights up even though CHEN 320 is nowhere in its prerequisite list: CHEN 482 needs CHEN 364, CHEN 364 needs CHEN 320, and the chain carries the dependency the whole way out.</em></p>
+<p align="center"><em>Pressing <code>A</code> expands the full transitive chain. Here the image shows every course feeding in and out along the path through CHEN 320. Blue is everything upstream that has to be cleared to reach it, running back through CHEN 205 and CHEN 204 to the chemistry and math sequence in semester 1, and purple is everything downstream that it gates. This is why a course like CHEN 482 lights up even though CHEN 320 is nowhere in its prerequisite list: CHEN 482 needs CHEN 364, CHEN 364 needs CHEN 320, and the chain carries the dependency the whole way out.</em></p>
 
 <p align="center">
   <img src="zlp-photos-new/flowchart-bottleneck.png" width="850" alt="Degree flowchart highlighting the degree bottleneck: the longest remaining prerequisite chain" />
