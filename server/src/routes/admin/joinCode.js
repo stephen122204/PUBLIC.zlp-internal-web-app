@@ -7,11 +7,11 @@ const {
   normalizeJoinCode,
   validateJoinCodeFormat,
   generateUniqueJoinCode,
+  normalizeJoinCodeDuration,
+  resolveJoinCodeExpiry,
 } = require('../../lib/joinCode');
 
 const router = express.Router();
-
-const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
 // Auto-disable expired codes; returns updated doc if changed.
 async function autoExpireIfNeeded(cohort) {
@@ -34,6 +34,7 @@ router.get('/cohorts/:cohortId/join-code', requireAdmin, async (req, res) => {
       cohortName:        cohort.name,
       joinCode:          cohort.joinCode ?? null,
       joinCodeEnabled:   cohort.joinCodeEnabled,
+      joinCodeDuration:  cohort.joinCodeDuration ?? '3d',
       joinCodeExpiresAt: cohort.joinCodeExpiresAt ?? null,
       joinCodeUpdatedAt: cohort.joinCodeUpdatedAt ?? null,
       archived:          !!cohort.archivedAt,
@@ -52,10 +53,12 @@ router.post('/cohorts/:cohortId/join-code/generate', requireAdmin, async (req, r
       return res.status(400).json({ error: 'Archived cohorts cannot have join codes.' });
     }
     const code = await generateUniqueJoinCode();
+    const duration = normalizeJoinCodeDuration(req.body.duration ?? cohort.joinCodeDuration);
     const now = new Date();
     cohort.joinCode          = code;
     cohort.joinCodeEnabled   = true;
-    cohort.joinCodeExpiresAt = new Date(now.getTime() + THREE_DAYS_MS);
+    cohort.joinCodeDuration  = duration;
+    cohort.joinCodeExpiresAt = resolveJoinCodeExpiry(duration, now);
     cohort.joinCodeUpdatedAt = now;
     cohort.joinCodeUpdatedBy = req.user._id;
     await cohort.save();
@@ -64,6 +67,7 @@ router.post('/cohorts/:cohortId/join-code/generate', requireAdmin, async (req, r
       cohortName:        cohort.name,
       joinCode:          code,
       joinCodeEnabled:   true,
+      joinCodeDuration:  cohort.joinCodeDuration,
       joinCodeExpiresAt: cohort.joinCodeExpiresAt,
       joinCodeUpdatedAt: cohort.joinCodeUpdatedAt,
     });
@@ -81,10 +85,12 @@ router.post('/cohorts/:cohortId/join-code/regenerate', requireAdmin, async (req,
       return res.status(400).json({ error: 'Archived cohorts cannot have join codes.' });
     }
     const code = await generateUniqueJoinCode();
+    const duration = normalizeJoinCodeDuration(req.body.duration ?? cohort.joinCodeDuration);
     const now = new Date();
     cohort.joinCode          = code;
     cohort.joinCodeEnabled   = true;
-    cohort.joinCodeExpiresAt = new Date(now.getTime() + THREE_DAYS_MS);
+    cohort.joinCodeDuration  = duration;
+    cohort.joinCodeExpiresAt = resolveJoinCodeExpiry(duration, now);
     cohort.joinCodeUpdatedAt = now;
     cohort.joinCodeUpdatedBy = req.user._id;
     await cohort.save();
@@ -93,6 +99,7 @@ router.post('/cohorts/:cohortId/join-code/regenerate', requireAdmin, async (req,
       cohortName:        cohort.name,
       joinCode:          code,
       joinCodeEnabled:   true,
+      joinCodeDuration:  cohort.joinCodeDuration,
       joinCodeExpiresAt: cohort.joinCodeExpiresAt,
       joinCodeUpdatedAt: cohort.joinCodeUpdatedAt,
     });
@@ -120,10 +127,12 @@ router.put('/cohorts/:cohortId/join-code', requireAdmin, async (req, res) => {
     if (conflict) {
       return res.status(409).json({ error: 'That join code is already in use by another cohort.' });
     }
+    const duration = normalizeJoinCodeDuration(req.body.duration ?? cohort.joinCodeDuration);
     const now = new Date();
     cohort.joinCode          = code;
     cohort.joinCodeEnabled   = true;
-    cohort.joinCodeExpiresAt = new Date(now.getTime() + THREE_DAYS_MS);
+    cohort.joinCodeDuration  = duration;
+    cohort.joinCodeExpiresAt = resolveJoinCodeExpiry(duration, now);
     cohort.joinCodeUpdatedAt = now;
     cohort.joinCodeUpdatedBy = req.user._id;
     await cohort.save();
@@ -132,6 +141,7 @@ router.put('/cohorts/:cohortId/join-code', requireAdmin, async (req, res) => {
       cohortName:        cohort.name,
       joinCode:          code,
       joinCodeEnabled:   true,
+      joinCodeDuration:  cohort.joinCodeDuration,
       joinCodeExpiresAt: cohort.joinCodeExpiresAt,
       joinCodeUpdatedAt: cohort.joinCodeUpdatedAt,
     });
@@ -152,9 +162,11 @@ router.patch('/cohorts/:cohortId/join-code/enabled', requireAdmin, async (req, r
     if (typeof enabled !== 'boolean') {
       return res.status(400).json({ error: 'enabled must be a boolean.' });
     }
+    const duration = normalizeJoinCodeDuration(req.body.duration ?? cohort.joinCodeDuration);
     const now = new Date();
     cohort.joinCodeEnabled   = enabled;
-    cohort.joinCodeExpiresAt = enabled ? new Date(now.getTime() + THREE_DAYS_MS) : null;
+    cohort.joinCodeDuration  = duration;
+    cohort.joinCodeExpiresAt = enabled ? resolveJoinCodeExpiry(duration, now) : null;
     cohort.joinCodeUpdatedAt = now;
     cohort.joinCodeUpdatedBy = req.user._id;
     await cohort.save();
@@ -162,6 +174,7 @@ router.patch('/cohorts/:cohortId/join-code/enabled', requireAdmin, async (req, r
       cohortId:          cohort._id,
       joinCode:          cohort.joinCode ?? null,
       joinCodeEnabled:   cohort.joinCodeEnabled,
+      joinCodeDuration:  cohort.joinCodeDuration,
       joinCodeExpiresAt: cohort.joinCodeExpiresAt ?? null,
       joinCodeUpdatedAt: cohort.joinCodeUpdatedAt,
     });

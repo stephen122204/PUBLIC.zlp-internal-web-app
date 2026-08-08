@@ -5,7 +5,7 @@ const { searchCourses, buildCourseHistory, listSubjects, listCoursesBySubject } 
 const { getCourseSections } = require('../../lib/courseSections');
 const { getCourseGradeStats } = require('../../lib/gradeDistributions');
 const { attachSyllabusLinks } = require('../../lib/syllabusResolver');
-const { getCourseCatalogTitle } = require('../../lib/courseCatalogTitles');
+const { getCourseCatalogTitle, getCoursePrereqsBatch } = require('../../lib/courseCatalogTitles');
 
 const router = express.Router();
 
@@ -74,6 +74,24 @@ router.get('/catalog-title', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[courses/catalog-title]', err);
     return res.status(500).json({ error: 'Failed to look up course title.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/student/courses/prereqs?codes=CSCE+221,MATH+151
+// Batch prereq/coreq lookup from the official catalog pages. Used by the degree
+// flowchart's "My Plan" mode to draw all prerequisite arrows between the courses
+// the student placed in their plan. Read-only; does not affect classification.
+// ---------------------------------------------------------------------------
+router.get('/prereqs', requireAuth, async (req, res) => {
+  const codes = String(req.query.codes ?? '').split(',').map((c) => c.trim()).filter(Boolean);
+  if (!codes.length) return res.status(400).json({ error: 'Missing required query parameter: codes' });
+  try {
+    const prereqs = await getCoursePrereqsBatch(codes.slice(0, 150));
+    return res.json({ prereqs });
+  } catch (err) {
+    console.error('[courses/prereqs]', err);
+    return res.status(500).json({ error: 'Failed to look up prerequisites.' });
   }
 });
 

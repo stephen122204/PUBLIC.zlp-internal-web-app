@@ -3,8 +3,8 @@
 // by student, with their status and transfer/honors flags.
 //
 // Usage:
-//   node scripts/list-planned-courses.js            --> every student
-//   node scripts/list-planned-courses.js smith      --> only students whose name/email contains "smith"
+//   node scripts/list-planned-courses.js            → every student
+//   node scripts/list-planned-courses.js smith      → only students whose name/email contains "smith"
 process.chdir('/Users/Stephen/Desktop/ZLP_APP/server');
 require('dotenv').config();
 const mongoose = require('mongoose');

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +9,8 @@ export default function AdminLayout() {
   const { user, logout } = useAuth();
   const { viewMode, setViewMode, isDeveloper } = useViewMode();
   const navigate = useNavigate();
+
+  useEffect(() => { document.title = isDeveloper ? 'ZLP | Developer' : 'ZLP | Admin'; }, [isDeveloper]);
 
   const handleViewSwitch = async (e) => {
     const mode = e.target.value;

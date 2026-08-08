@@ -19,12 +19,14 @@ async function getStudentActiveCohort(userId) {
  */
 async function getActiveSchedulingCycleForCohort(cohortId) {
   if (!cohortId) return null;
+  // Sorted defensively so that even if more than one cycle is somehow active, the most
+  // recently opened one wins (there should only ever be one after single-active enforcement).
   return SchedulingCycle.findOne({
     cohortId,
     activeForStudents: true,
     status: 'open',
     archived: { $ne: true },
-  }).lean();
+  }).sort({ submissionOpenAt: -1, updatedAt: -1 }).lean();
 }
 
 /**
@@ -35,12 +37,24 @@ async function getActiveSchedulingCycleForCohort(cohortId) {
  */
 async function getCurrentCycleForCohort(cohortId) {
   if (!cohortId) return null;
+  // Prefer the currently-active open cycle so reopening an OLDER cycle immediately becomes
+  // the one students see — not whichever cycle was created most recently.
+  const active = await SchedulingCycle.findOne({
+    cohortId,
+    activeForStudents: true,
+    status: 'open',
+    archived: { $ne: true },
+  }).sort({ submissionOpenAt: -1, updatedAt: -1 }).lean();
+  if (active) return active;
+
+  // No open cycle → show the most recently opened open/closed cycle (e.g. the one just
+  // closed) as read-only history, rather than the most recently created.
   return SchedulingCycle.findOne({
     cohortId,
     status: { $in: ['open', 'closed'] },
     archived: { $ne: true },
   })
-    .sort({ createdAt: -1 })
+    .sort({ submissionOpenAt: -1, updatedAt: -1 })
     .lean();
 }
 

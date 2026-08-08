@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,8 @@ export default function StudentLayout() {
   const { user, logout } = useAuth();
   const { viewMode, setViewMode, isDevUser, isDemoStudentMode } = useViewMode();
   const navigate = useNavigate();
+
+  useEffect(() => { document.title = 'ZLP | Student'; }, []);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'developer';
 
@@ -37,7 +40,7 @@ export default function StudentLayout() {
             <img src="/icon-degree-planner.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', verticalAlign: 'middle', marginRight: 8 }} />
             Degree Planner
           </NavLink>
-          <NavLink to="/student/future-planning">
+          <NavLink to="/student/flowchart">
             <img src="/icon-flowchart.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', verticalAlign: 'middle', marginRight: 8 }} />
             Degree Flowchart
           </NavLink>

@@ -82,18 +82,34 @@ router.patch('/cycles/:cycleId', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: `Invalid status. Allowed values: ${allowedStatuses.join(', ')}.` });
     }
 
-    const cycle = await SchedulingCycle.findByIdAndUpdate(
-      req.params.cycleId,
-      {
-        ...(name !== undefined && { name: name ? name.trim() : '' }),
-        ...(term && { term }),
-        ...(termCode && { termCode }),
-        ...(submissionOpenAt !== undefined && { submissionOpenAt: submissionOpenAt || null }),
-        ...(submissionDeadline !== undefined && { submissionDeadline: submissionDeadline || null }),
-        ...(status && { status }),
-      },
-      { new: true }
-    );
+    const update = {
+      ...(name !== undefined && { name: name ? name.trim() : '' }),
+      ...(term && { term }),
+      ...(termCode && { termCode }),
+      ...(submissionOpenAt !== undefined && { submissionOpenAt: submissionOpenAt || null }),
+      ...(submissionDeadline !== undefined && { submissionDeadline: submissionDeadline || null }),
+      ...(status && { status }),
+    };
+
+    // Enforce a single active/open cycle per cohort on this path too. Editing a cycle to
+    // "open" must deactivate + close every other cycle (same as Activate/Reopen); moving it
+    // to closed/draft clears its own active flag. Without this, the edit modal could leave
+    // two cycles open/active at once, which then confuses the student-side cycle selection.
+    if (status === 'open') {
+      await SchedulingCycle.updateMany(
+        { cohortId: existing.cohortId, _id: { $ne: existing._id } },
+        { activeForStudents: false }
+      );
+      await SchedulingCycle.updateMany(
+        { cohortId: existing.cohortId, _id: { $ne: existing._id }, status: 'open' },
+        { status: 'closed' }
+      );
+      update.activeForStudents = true;
+    } else if (status === 'closed' || status === 'draft') {
+      update.activeForStudents = false;
+    }
+
+    const cycle = await SchedulingCycle.findByIdAndUpdate(req.params.cycleId, update, { new: true });
     return res.json({ cycle });
   } catch (err) {
     return res.status(500).json({ error: err.message });

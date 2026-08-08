@@ -57,7 +57,7 @@ const DAY_LABELS      = { M: 'M', T: 'T', W: 'W', R: 'R', F: 'F' };
 const DAY_NAMES       = { M: 'Monday', T: 'Tuesday', W: 'Wednesday', R: 'Thursday', F: 'Friday' };
 const MAX_SEARCH_NODES    = 50000; // DFS node cap per student-window
 const DEFAULT_MAX_SEARCH_MS = 100;  // ms budget per student-window DFS call
-const SOLVER_VERSION       = '3';   // bump when algorithm changes affect comparability
+const SOLVER_VERSION       = '4';   // bump when algorithm changes affect comparability
 
 const LAB_TYPES = new Set(['LAB', 'L', 'LABORATORY', 'REC', 'RECITATION', 'SI', 'IND', 'FLD', 'PRC']);
 
@@ -70,17 +70,17 @@ const LAB_TYPES = new Set(['LAB', 'L', 'LABORATORY', 'REC', 'RECITATION', 'SI', 
  * Handles TWO formats returned by the Howdy/Banner API:
  *
  *   1. "HH:MM AM/PM"  — 12-hour format (what Howdy actually returns)
- *        "09:10 AM" --> 550     "12:35 PM" --> 755
- *        "01:50 PM" --> 830     "12:00 AM" --> 0 (midnight)
+ *        "09:10 AM" → 550     "12:35 PM" → 755
+ *        "01:50 PM" → 830     "12:00 AM" → 0 (midnight)
  *
  *   2. "HHMM" or "HH:MM" — 24-hour format (used internally / legacy)
- *        "0910" --> 550   "1430" --> 870   "09:10" --> 550
+ *        "0910" → 550   "1430" → 870   "09:10" → 550
  *
  * NOTE: Howdy returns 12-hour strings like "01:50 PM", NOT "1350" or "13:50".
  * Parsing them without the AM/PM handling treats every PM time as its AM
- * counterpart (e.g. 1:50 PM --> 110 min instead of 830 min), which causes ALL
+ * counterpart (e.g. 1:50 PM → 110 min instead of 830 min), which causes ALL
  * afternoon class sections to appear before the ZLP grid and never overlap
- * any candidate window --> heatmap shows zero conflicts in the afternoon.
+ * any candidate window → heatmap shows zero conflicts in the afternoon.
  */
 function parseHHMM(str) {
   if (!str) return null;
@@ -93,9 +93,9 @@ function parseHHMM(str) {
     const m      = parseInt(amPmMatch[2], 10);
     const isPM   = amPmMatch[3].toUpperCase() === 'PM';
     if (Number.isNaN(h) || Number.isNaN(m)) return null;
-    // Standard 12-hour --> 24-hour conversion:
-    //   12 AM (midnight) --> 0     12 PM (noon) --> 12
-    //    1 PM            --> 13    11 PM        --> 23
+    // Standard 12-hour → 24-hour conversion:
+    //   12 AM (midnight) → 0     12 PM (noon) → 12
+    //    1 PM            → 13    11 PM        → 23
     if (h === 12) h = isPM ? 12 : 0;
     else if (isPM) h += 12;
     return h * 60 + m;
@@ -111,7 +111,7 @@ function parseHHMM(str) {
 
 /**
  * Format minutes since midnight to 24-hour HH:MM string.
- * e.g. 480 --> "08:00", 550 --> "09:10", 970 --> "16:10"
+ * e.g. 480 → "08:00", 550 → "09:10", 970 → "16:10"
  */
 function formatTime24h(mins) {
   const h = Math.floor(mins / 60);
@@ -125,6 +125,18 @@ function formatTime24h(mins) {
  */
 function overlaps(startA, endA, startB, endB) {
   return Math.max(startA, startB) < Math.min(endA, endB);
+}
+
+// Concrete "section (day HH:MM–HH:MM)" labels for the given sections that overlap
+// the window on `day` — so the UI can show exactly which chosen section/time clashes.
+function sectionOverlapLabels(sections, day, winStart, winEnd) {
+  return sections.map((o) => {
+    const meet = o.meetings
+      .filter((m) => m.days.includes(day) && overlaps(m.startMin, m.endMin, winStart, winEnd))
+      .map((m) => `${day} ${formatTime24h(m.startMin)}–${formatTime24h(m.endMin)}`)[0] ?? null;
+    const id = o.section ?? o.crn;
+    return id ? (meet ? `${id} (${meet})` : String(id)) : meet;
+  }).filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
@@ -235,7 +247,7 @@ function normDays(daysStr) {
 
 /**
  * Given raw section rows from courseSections.js (mapSectionRow output),
- * build a map:  courseCode --> [ sectionOption ]
+ * build a map:  courseCode → [ sectionOption ]
  *
  * sectionOption = {
  *   crn, section, title,
@@ -483,7 +495,7 @@ function checkLabCompatibility(chosenPrimaryReps, labOptionsByCourse, courseCode
  *
  * A course with ≤2 surviving primary groups is "constrained" and warrants DFS.
  *
- * @param {object} survivingOptions  courseCode --> [sectionOption]  (post ZLP-filter)
+ * @param {object} survivingOptions  courseCode → [sectionOption]  (post ZLP-filter)
  * @returns {{ shouldCheck: bool, constrainedCourses, reason }}
  */
 function shouldRunSelfConflictCheck(survivingOptions) {
@@ -491,8 +503,8 @@ function shouldRunSelfConflictCheck(survivingOptions) {
   for (const [code, options] of Object.entries(survivingOptions)) {
     if (!options || options.length === 0) continue;
     const { primaryGroups } = buildPrimarySchedulingGroups(options);
-    if (primaryGroups.length === 0) continue;  // async/empty --> no scheduling constraint
-    if (primaryGroups.length >= 3)  continue;  // ≥3 primary patterns --> low self-conflict risk
+    if (primaryGroups.length === 0) continue;  // async/empty → no scheduling constraint
+    if (primaryGroups.length >= 3)  continue;  // ≥3 primary patterns → low self-conflict risk
     constrainedCourses.push({ code, primaryGroupsAfterZlp: primaryGroups.length });
   }
   return {
@@ -521,7 +533,7 @@ function shouldRunSelfConflictCheck(survivingOptions) {
  *   6. Memoize failed (courseIdx, committed-signature) states.
  *   7. Time-budget: return unknown rather than a wrong answer on timeout.
  *
- * @param {object} survivingOptions  courseCode --> [ sectionOption ]
+ * @param {object} survivingOptions  courseCode → [ sectionOption ]
  * @param {number} maxMs             milliseconds budget (default DEFAULT_MAX_SEARCH_MS)
  * @returns {{ feasible, selfConflict, unknown, selectedCombination, searchNodes, searchLimit }}
  */
@@ -689,7 +701,7 @@ function evaluateStudentFeasibilityForWindow(studentData, sectionsByCode, day, z
     if (!options || options.length === 0) {
       warnings.push(`No section data for ${code}`);
       // Treat as non-blocking with warning (don't crash)
-      survivingOptions[code] = []; // empty --> direct conflict if we're strict; we'll flag as warning
+      survivingOptions[code] = []; // empty → direct conflict if we're strict; we'll flag as warning
       continue;
     }
 
@@ -702,15 +714,15 @@ function evaluateStudentFeasibilityForWindow(studentData, sectionsByCode, day, z
     const effectiveSurviving = surviving.length > 0 ? surviving : asyncOptions;
 
     if (options.length > 0 && overlapping.length === options.length && asyncOptions.length === 0) {
-      // Every section overlaps --> direct conflict
+      // Every section overlaps → direct conflict
       const labOnly = overlapping.every((o) =>
         o.meetings.filter((m) => m.days.includes(day) && overlaps(m.startMin, m.endMin, zlpStart, zlpEnd))
           .every((m) => m.isLab)
       );
       const secInfo = getSecondaryOnlyInfo(overlapping, day, zlpStart, zlpEnd);
-      directConflicts.push({ code, title: req.title, classification: req.classification, labOnly, secondaryOnlyLabel: secInfo.secondaryOnlyLabel, secondaryOverlapTypes: secInfo.secondaryOverlapTypes, narrowedByChoice, preferredSectionsUsed, totalSectionsAvailable });
+      directConflicts.push({ code, title: req.title, classification: req.classification, labOnly, secondaryOnlyLabel: secInfo.secondaryOnlyLabel, secondaryOverlapTypes: secInfo.secondaryOverlapTypes, narrowedByChoice, preferredSectionsUsed, totalSectionsAvailable, chosenSectionLabels: narrowedByChoice ? sectionOverlapLabels(overlapping, day, zlpStart, zlpEnd) : [] });
     } else if (overlapping.length > 0 && effectiveSurviving.length > 0) {
-      // Some overlap, some survive --> blocked
+      // Some overlap, some survive → blocked
       const labOnly = overlapping.every((o) =>
         o.meetings.filter((m) => m.days.includes(day) && overlaps(m.startMin, m.endMin, zlpStart, zlpEnd))
           .every((m) => m.isLab)
@@ -721,7 +733,7 @@ function evaluateStudentFeasibilityForWindow(studentData, sectionsByCode, day, z
       const lectureBlockedSections = overlapping.filter((o) =>
         o.meetings.some((m) => m.days.includes(day) && overlaps(m.startMin, m.endMin, zlpStart, zlpEnd) && !m.isLab)
       ).length;
-      blockedCourses.push({ code, title: req.title, classification: req.classification, labOnly, secondaryOnlyLabel: secInfo.secondaryOnlyLabel, secondaryOverlapTypes: secInfo.secondaryOverlapTypes, narrowedByChoice, preferredSectionsUsed, totalSectionsAvailable, blockedSections: overlapping.length, lectureBlockedSections, totalSections: options.length });
+      blockedCourses.push({ code, title: req.title, classification: req.classification, labOnly, secondaryOnlyLabel: secInfo.secondaryOnlyLabel, secondaryOverlapTypes: secInfo.secondaryOverlapTypes, narrowedByChoice, preferredSectionsUsed, totalSectionsAvailable, blockedSections: overlapping.length, lectureBlockedSections, totalSections: options.length, chosenSectionLabels: narrowedByChoice ? sectionOverlapLabels(overlapping, day, zlpStart, zlpEnd) : [] });
       survivingOptions[code] = effectiveSurviving;
     } else {
       // Clear — all survive or async
@@ -826,7 +838,7 @@ function evaluateWindow(win, students, sectionsByCode, legacyMode = false) {
   const { day, startMinutes, endMinutes } = win;
 
   // Aggregate course-level metrics across all students
-  const courseConflictMap = new Map(); // code --> { ...meta, requestCount, studentNames, labOnly }
+  const courseConflictMap = new Map(); // code → { ...meta, requestCount, studentNames, labOnly }
   const courseBlockedMap  = new Map();
 
   let conflictRequests    = 0;
@@ -859,12 +871,15 @@ function evaluateWindow(win, students, sectionsByCode, legacyMode = false) {
       conflictRequests++;
       if (!affectedStudentNames.includes(student.name)) affectedStudentNames.push(student.name);
       if (!courseConflictMap.has(c.code)) {
-        courseConflictMap.set(c.code, { code: c.code, title: c.title, classification: c.classification, requestCount: 0, affectedStudentNames: [], restrictedStudentNames: [], labOnly: c.labOnly, _secondaryTypeSet: new Set(c.secondaryOverlapTypes ?? []) });
+        courseConflictMap.set(c.code, { code: c.code, title: c.title, classification: c.classification, requestCount: 0, affectedStudentNames: [], restrictedStudentNames: [], restrictedStudentSections: [], labOnly: c.labOnly, _secondaryTypeSet: new Set(c.secondaryOverlapTypes ?? []) });
       }
       const entry = courseConflictMap.get(c.code);
       entry.requestCount++;
       if (!entry.affectedStudentNames.includes(student.name)) entry.affectedStudentNames.push(student.name);
-      if (c.narrowedByChoice && !entry.restrictedStudentNames.includes(student.name)) entry.restrictedStudentNames.push(student.name);
+      if (c.narrowedByChoice && !entry.restrictedStudentNames.includes(student.name)) {
+        entry.restrictedStudentNames.push(student.name);
+        entry.restrictedStudentSections.push({ name: student.name, used: c.preferredSectionsUsed, total: c.totalSectionsAvailable, chosen: c.chosenSectionLabels ?? [] });
+      }
       if (!c.labOnly) entry.labOnly = false; // only labOnly if ALL instances are lab-only
       if (c.secondaryOverlapTypes) for (const t of c.secondaryOverlapTypes) entry._secondaryTypeSet.add(t);
     }
@@ -875,12 +890,15 @@ function evaluateWindow(win, students, sectionsByCode, legacyMode = false) {
       if (!c.labOnly) nonLabBlockedRequests++;
       if (!blockedStudentNames.includes(student.name)) blockedStudentNames.push(student.name);
       if (!courseBlockedMap.has(c.code)) {
-        courseBlockedMap.set(c.code, { code: c.code, title: c.title, classification: c.classification, requestCount: 0, affectedStudentNames: [], restrictedStudentNames: [], labOnly: c.labOnly, blockedSections: null, lectureBlockedSections: null, totalSections: null, blockedFraction: null, _secondaryTypeSet: new Set(c.secondaryOverlapTypes ?? []) });
+        courseBlockedMap.set(c.code, { code: c.code, title: c.title, classification: c.classification, requestCount: 0, affectedStudentNames: [], restrictedStudentNames: [], restrictedStudentSections: [], labOnly: c.labOnly, blockedSections: null, lectureBlockedSections: null, totalSections: null, blockedFraction: null, _secondaryTypeSet: new Set(c.secondaryOverlapTypes ?? []) });
       }
       const entry = courseBlockedMap.get(c.code);
       entry.requestCount++;
       if (!entry.affectedStudentNames.includes(student.name)) entry.affectedStudentNames.push(student.name);
-      if (c.narrowedByChoice && !entry.restrictedStudentNames.includes(student.name)) entry.restrictedStudentNames.push(student.name);
+      if (c.narrowedByChoice && !entry.restrictedStudentNames.includes(student.name)) {
+        entry.restrictedStudentNames.push(student.name);
+        entry.restrictedStudentSections.push({ name: student.name, used: c.preferredSectionsUsed, total: c.totalSectionsAvailable, chosen: c.chosenSectionLabels ?? [] });
+      }
       if (!c.labOnly) entry.labOnly = false;
       // Track the highest blocked fraction across students for this course
       // (x/N sections blocked). The highest fraction = most-impacted case.
@@ -1023,7 +1041,7 @@ function rankWindows(windows, legacyMode = false) {
 
 /**
  * Build a heatmap structure:
- *   { startTime --> { day --> { conflictRequests, affectedStudents, selfBlockedStudents, rank } } }
+ *   { startTime → { day → { conflictRequests, affectedStudents, selfBlockedStudents, rank } } }
  */
 function buildHeatmap(rankedWindows, legacyMode = false) {
   const heatmap = {};
@@ -1069,6 +1087,10 @@ async function buildAlgorithmInput({ cohortId, schedulingCycleId, mode, includeD
   const includedClassifications = mode === 'required_only'
     ? ['required']
     : ['required', 'preferred'];
+
+  // Only Sections-Preferred honors each student's chosen sections. Preferred
+  // includes preferred courses but leaves all sections open (like Required).
+  const useSectionPreferences = mode === 'required_plus_preferred';
 
   // Fetch active cohort members
   const members = await CohortMember.find({ cohortId, status: 'active' }).lean();
@@ -1118,7 +1140,7 @@ async function buildAlgorithmInput({ cohortId, schedulingCycleId, mode, includeD
     for (const snap of sub.courseSnapshot) {
       if (!includedClassifications.includes(snap.finalClassification)) continue;
 
-      const preferredCRNs = mode !== 'required_only'
+      const preferredCRNs = useSectionPreferences
         ? (snap.preferredSections ?? []).map((p) => String(p.crn))
         : null;
 
@@ -1149,9 +1171,9 @@ async function buildAlgorithmInput({ cohortId, schedulingCycleId, mode, includeD
       warnings.push('Some students have no snapshot and no live course requests matching the selected mode.');
     }
 
-    // Build preferred section CRN lookup for live requests (req+pref mode only)
+    // Build preferred section CRN lookup for live requests (Sections-Preferred only)
     const reqIdToPreferredCRNs = new Map();
-    if (mode !== 'required_only' && liveRequests.length > 0) {
+    if (useSectionPreferences && liveRequests.length > 0) {
       const SectionPref = require('../models/SectionPreference');
       const prefs = await SectionPref.find(
         { courseRequestId: { $in: liveRequests.map((r) => r._id) } },
@@ -1170,7 +1192,7 @@ async function buildAlgorithmInput({ cohortId, schedulingCycleId, mode, includeD
         const u = userMap.get(uid);
         byStudent.set(uid, { userId: uid, name: u?.name ?? u?.email ?? uid, requests: [] });
       }
-      const preferredCRNs = mode !== 'required_only'
+      const preferredCRNs = useSectionPreferences
         ? [...(reqIdToPreferredCRNs.get(String(req._id)) ?? [])]
         : null;
       byStudent.get(uid).requests.push({
@@ -1284,11 +1306,11 @@ async function fetchSectionsForAlgorithm(termCode, courseCodes) {
  *   allowedOptions   — the section pool used for conflict evaluation
  *   constraintMode   — 'all' | 'preferred' | 'fallback'
  *
- * Required Only: req.preferredCRNs === null --> always uses all sections.
+ * Required Only: req.preferredCRNs === null → always uses all sections.
  * Required + Preferred:
- *   preferredCRNs empty []  --> use all sections ('all')
- *   preferredCRNs non-empty, CRNs matched  --> use preferred only ('preferred')
- *   preferredCRNs non-empty, no CRN matched --> warn, fall back to all ('fallback')
+ *   preferredCRNs empty []  → use all sections ('all')
+ *   preferredCRNs non-empty, CRNs matched  → use preferred only ('preferred')
+ *   preferredCRNs non-empty, no CRN matched → warn, fall back to all ('fallback')
  *
  * Core rule: conflict/block evaluation is per student-course request using
  * that request's allowedOptions. An unconstrained student (Student B, all
@@ -1321,7 +1343,7 @@ function resolveRequestAllowedOptions(students, sectionsByCode) {
           req.allowedOptions = preferredOptions;
           req.constraintMode = 'preferred';
         } else {
-          // Preferred CRNs not found in current term --> fallback
+          // Preferred CRNs not found in current term → fallback
           req.allowedOptions = allOptions;
           req.constraintMode = 'fallback';
           warnings.push(
@@ -1772,9 +1794,13 @@ async function runZlpAlgorithmForCycle({ cohortId, schedulingCycleId, mode, incl
     // Rank
     const rankedWindows = rankWindows(rawResults, legacyMode);
 
-    // Preferred hard-conflict impact (required_only only — informational, does not change ranking)
+    // Preferred hard-conflict impact — informational, does not change ranking.
+    // Required tier: shows preferred courses that would become impossible.
+    // Preferred tier: the UI surfaces only the section-preference (narrowing) part.
+    // Sections-Preferred needs none of this — its restricted-student detail comes
+    // from the main conflict/blocked results (see restrictedStudentSections).
     let finalWindows = rankedWindows;
-    if (mode === 'required_only') {
+    if (mode === 'required_only' || mode === 'preferred') {
       const prefResult = await computePreferredHardConflictImpact({
         rankedWindows,
         cohortId,
@@ -1836,23 +1862,24 @@ async function runZlpAlgorithmForCycle({ cohortId, schedulingCycleId, mode, incl
 }
 
 /**
- * Run both modes (required_only and required_plus_preferred) sequentially.
- * Returns { requiredOnlyRun, requiredPlusPreferredRun }.
+ * Run all three tiers (Required, Preferred, Sections-Preferred) in parallel.
+ * Returns { requiredOnlyRun, preferredRun, requiredPlusPreferredRun }.
  */
-async function runBothZlpModes({ cohortId, schedulingCycleId, includeDraftSubmissions = false, userId, params = {}, legacyMode = false }) {
-  const [requiredOnlyRun, requiredPlusPreferredRun] = await Promise.all([
+async function runAllZlpModes({ cohortId, schedulingCycleId, includeDraftSubmissions = false, userId, params = {}, legacyMode = false }) {
+  const [requiredOnlyRun, preferredRun, requiredPlusPreferredRun] = await Promise.all([
     runZlpAlgorithmForCycle({ cohortId, schedulingCycleId, mode: 'required_only',           includeDraftSubmissions, userId, params, legacyMode }),
+    runZlpAlgorithmForCycle({ cohortId, schedulingCycleId, mode: 'preferred',                includeDraftSubmissions, userId, params, legacyMode }),
     runZlpAlgorithmForCycle({ cohortId, schedulingCycleId, mode: 'required_plus_preferred', includeDraftSubmissions, userId, params, legacyMode }),
   ]);
-  // Single cleanup after both modes complete — avoids the parallel-execution
-  // race where two simultaneous per-mode cleanups each see the same docs to
-  // delete and one of them ends up a no-op, leaving the count too high.
+  // Single cleanup after all modes complete — avoids the parallel-execution
+  // race where simultaneous per-mode cleanups each see the same docs to delete
+  // and one ends up a no-op, leaving the count too high. 12 = last 4 runs x 3 modes.
   try {
     await pruneAlgorithmRunsGlobal({ limit: 12, reason: 'post-run' });
   } catch (cleanupErr) {
-    console.error('[algorithm retention] cleanup error after runBothZlpModes (non-fatal):', cleanupErr);
+    console.error('[algorithm retention] cleanup error after runAllZlpModes (non-fatal):', cleanupErr);
   }
-  return { requiredOnlyRun, requiredPlusPreferredRun };
+  return { requiredOnlyRun, preferredRun, requiredPlusPreferredRun };
 }
 
 // ---------------------------------------------------------------------------
@@ -1951,8 +1978,20 @@ async function buildExcelWorkbook(run) {
   wb.modified = new Date();
 
   const { windows = [], heatmap = {}, courseSectionSummary = [], unavailableCourses = [] } = run.results ?? {};
-  const modeName = run.mode === 'required_only' ? 'Required Only' : 'Required + Preferred';
+  const modeName = run.mode === 'required_only' ? 'Required'
+                 : run.mode === 'preferred'     ? 'Preferred'
+                 : 'Sections-Preferred';
   const legacyMode = run.parameters?.legacyMode ?? false;
+
+  // Section prefs affected — matches the website column: impact-pass count where
+  // available (Required/Preferred), else the restricted students in the cards.
+  const sectionPrefsAffectedCount = (win) => {
+    if (win.preferredHardConflictImpact?.preferredRestrictedStudents != null) return win.preferredHardConflictImpact.preferredRestrictedStudents;
+    const s = new Set();
+    for (const c of (win.conflictCourses ?? [])) for (const n of (c.restrictedStudentNames ?? [])) s.add(n);
+    for (const c of (win.blockedCourses  ?? [])) for (const n of (c.restrictedStudentNames ?? [])) s.add(n);
+    return s.size;
+  };
 
   // Helper: parse HH:MM to minutes for sorting
   const toMin24 = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
@@ -2001,10 +2040,12 @@ async function buildExcelWorkbook(run) {
     ...(run.mode === 'required_only' ? [
       { name: 'Pref. Hard Conflicts',    width: 22 },
       { name: 'Pref. Affected Students', width: 22 },
+      { name: 'Pref. Unknown',           width: 14 },
     ] : []),
     { name: 'Conflicting Courses',     width: 44 },
     { name: 'Blocked Courses',         width: 44 },
     ...(!legacyMode ? [{ name: 'Self-Conflict Reasons',  width: 50 }] : []),
+    { name: 'Sect.-Pref. Affected',  width: 20 },
   ];
   rightHeaders.forEach((col, i) => {
     mainSheet.getColumn(RIGHT_START + i).width = col.width;
@@ -2056,13 +2097,15 @@ async function buildExcelWorkbook(run) {
       ...(run.mode === 'required_only' ? (() => {
         const pref = g.preferredHardConflictImpact;
         return [
-          pref?.preferredHardConflicts    ?? 0,
-          pref?.preferredAffectedStudents ?? 0,
+          pref?.preferredHardConflicts              ?? 0,
+          pref?.preferredAffectedStudents           ?? 0,
+          pref?.preferredFeasibilityUnknownStudents ?? 0,
         ];
       })() : []),
       (g.conflictCourses ?? []).map((c) => { const lbl = c.secondaryOnlyLabel ?? (c.labOnly ? 'Lab only' : null); return lbl ? `${c.code} (${lbl})` : c.code; }).join(', '),
       (g.blockedCourses ?? []).map((c) => { const lbl = c.secondaryOnlyLabel ?? (c.labOnly ? 'Lab only' : null); return lbl ? `${c.code} (${lbl})` : c.code; }).join(', '),
       ...(!legacyMode ? [(g.selfConflictReasons ?? g.selfBlockReasons ?? []).map((r) => `${r.student}: ${r.reason}`).join('; ')] : []),
+      sectionPrefsAffectedCount(g),
     ];
   }
 
@@ -2075,7 +2118,7 @@ async function buildExcelWorkbook(run) {
     const b = Math.round(bA + (bB - bA) * t);
     return `FF${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`.toUpperCase();
   }
-  // Green --> Yellow --> Red scale matching original Python spreadsheet (63BE7B / FFEB84 / F8696B)
+  // Green → Yellow → Red scale matching original Python spreadsheet (63BE7B / FFEB84 / F8696B)
   function heatmapArgb(value, maxValue) {
     if (value <= 0 || maxValue <= 0) return 'FF63BE7B';
     const ratio = Math.min(value / maxValue, 1);
@@ -2121,8 +2164,9 @@ async function buildExcelWorkbook(run) {
   }
 
   // Mode info note on A1
-  mainSheet.getCell('A1').note =
-    `Mode: ${modeName}\nPreferred sections: informational only — not hard constraints.`;
+  mainSheet.getCell('A1').note = run.mode === 'required_plus_preferred'
+    ? `Mode: ${modeName}\nPreferred sections constrain each student's allowed sections.`
+    : `Mode: ${modeName}\nAll sections open — preferred sections do not constrain scoring here.`;
 
   // ─── Sheet 2: Course Summary ───────────────────────────────────────────────
   const csSheet = wb.addWorksheet('Course Summary');
@@ -2172,6 +2216,7 @@ async function buildExcelWorkbook(run) {
       { header: 'Pref. Self-Conflicts',    key: 'prefSelfConflicts',    width: 20 },
       { header: 'Pref. Unknown',           key: 'prefUnknown',          width: 16 },
     ] : []),
+    { header: 'Sect.-Pref. Affected',  key: 'sectionPrefsAffected', width: 20 },
   ];
   rwSheet.getRow(1).font = { bold: true };
   rwSheet.views = [{ state: 'frozen', ySplit: 1 }];
@@ -2204,6 +2249,7 @@ async function buildExcelWorkbook(run) {
       row.prefSelfConflicts    = pref?.preferredSelfConflictStudents       ?? 0;
       row.prefUnknown          = pref?.preferredFeasibilityUnknownStudents ?? 0;
     }
+    row.sectionPrefsAffected = sectionPrefsAffectedCount(w);
     rwSheet.addRow(row);
   }
 
@@ -2431,8 +2477,9 @@ async function buildAlgorithmDiagnostic({ cohortId, schedulingCycleId }) {
     preferredSections: {
       savedCount:                  preferredSections.length,
       usedInRequiredOnly:          false,
+      usedInPreferred:             false,
       usedInRequiredPlusPreferred: true,
-      note: 'In Required + Preferred mode, preferred sections constrain the allowed option pool for that student-course request. In Required Only mode, all available sections are used and preferred sections have no effect on scoring.',
+      note: 'Preferred sections constrain the allowed option pool only in the Sections-Preferred tier. In the Required and Preferred tiers all available sections are used, so preferred sections have no effect on scoring there.',
       samples: preferredSections.slice(0, 5).map((p) => ({
         userId:          String(p.userId),
         crn:             p.crn,
@@ -2603,7 +2650,7 @@ async function buildWindowDebug({ cohortId, schedulingCycleId, mode = 'required_
 
 module.exports = {
   runZlpAlgorithmForCycle,
-  runBothZlpModes,
+  runAllZlpModes,
   buildAlgorithmInput,
   fetchSectionsForAlgorithm,
   resolveRequestAllowedOptions,

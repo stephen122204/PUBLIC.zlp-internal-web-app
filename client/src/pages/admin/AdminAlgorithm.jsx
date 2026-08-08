@@ -48,9 +48,13 @@ function SecondaryBadge({ item }) {
 function RestrictedBadge({ item }) {
   const names = item.restrictedStudentNames ?? [];
   if (names.length === 0) return null;
+  const sections = item.restrictedStudentSections ?? [];
+  const detail = sections.length > 0
+    ? sections.map((r) => `${r.name} (${r.used ?? '?'} of ${r.total ?? '?'} sections)`).join(', ')
+    : names.join(', ');
   return (
     <span
-      title={`${names.join(', ')} limited this course to a subset of sections by choice when other sections existed. The conflict is caused by their own preference, not an unavoidable clash.`}
+      title={`${detail} limited this course to a subset of sections by choice when other sections existed. The conflict is caused by their own preference, not an unavoidable clash.`}
       style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 8, padding: '2px 8px', borderRadius: 6, background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', cursor: 'default' }}
     >
       ⓘ Student restricted sections
@@ -77,10 +81,69 @@ function StudentNamesWithRestriction({ item }) {
 }
 
 // ---------------------------------------------------------------------------
+// RestrictedStudentDetail — inline per-student narrowing detail shown inside a
+// conflict/blocked card (Sections-Preferred): who narrowed the course, how many
+// of their sections were used, and exactly which chosen sections clash.
+// ---------------------------------------------------------------------------
+function RestrictedStudentDetail({ item }) {
+  const rows = item.restrictedStudentSections ?? [];
+  if (rows.length === 0) return null;
+  return (
+    <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #ddd6fe' }}>
+      {rows.map((r, i) => (
+        <div key={i} style={{ fontSize: 12, color: '#6d28d9', marginTop: i > 0 ? 3 : 0 }}>
+          <span style={{ fontWeight: 700 }}>{r.name}</span>
+          {' '}restricted to {r.used ?? '?'} of {r.total ?? '?'} sections
+          {r.chosen?.length > 0 && (
+            <span style={{ color: '#9ca3af' }}> · chosen: {r.chosen.join(', ')}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section-highlight helpers — pull the section id out of "section (day time)"
+// labels so the sections viewer can highlight the rows a restricted student's
+// chosen sections map to.
+// ---------------------------------------------------------------------------
+function sectionIdsFromLabels(labels) {
+  return Array.from(new Set(
+    (labels ?? []).map((l) => String(l).split(' (')[0].trim()).filter(Boolean)
+  ));
+}
+
+// Section ids a restricted student chose that clash with this window (direct
+// conflict / blocked cards).
+function conflictChosenSectionIds(item) {
+  return sectionIdsFromLabels([
+    ...(item.chosenSectionLabels ?? []),
+    ...((item.restrictedStudentSections ?? []).flatMap((r) => r.chosen ?? [])),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
 // Helper: format mode label
 // ---------------------------------------------------------------------------
+const MODE_ORDER = ['required_only', 'preferred', 'required_plus_preferred'];
+
 function modeLabel(mode) {
-  return mode === 'required_only' ? 'Required Only' : 'Required + Preferred';
+  return mode === 'required_only' ? 'Required'
+    : mode === 'preferred'        ? 'Preferred'
+    : 'Sections-Preferred';
+}
+
+// Reserves the bold width so a tab label doesn't resize (and shift the layout)
+// when it becomes active. A hidden bold copy holds the width; the visible copy
+// overlaps it.
+function TabLabel({ children }) {
+  return (
+    <span style={{ display: 'grid' }}>
+      <span aria-hidden="true" style={{ gridColumn: 1, gridRow: 1, fontWeight: 700, visibility: 'hidden' }}>{children}</span>
+      <span style={{ gridColumn: 1, gridRow: 1 }}>{children}</span>
+    </span>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -127,8 +190,11 @@ function AlgorithmInfoPanel() {
             ['Self-Conflict Students',      'Students who have at least one available section for each course individually, but cannot build a complete non-overlapping schedule from the remaining sections.'],
             ['Feasibility Unknown',         'Students whose schedule feasibility could not be fully verified by the solver. This usually means the solver reached a time or search limit.'],
             ['Best Window',                 'A candidate ZLP meeting time with the lowest score based on the ranking order.'],
-            ['Required Only vs Req + Pref', 'Required Only includes courses marked Required. Required + Preferred includes courses marked Required or Preferred. Not Applied and Unclassified courses are excluded from both modes.'],
-            ['Preferred Sections',          'Not used in Required Only mode. In Required + Preferred mode, preferred sections narrow the allowed section options for each student-course request. The course itself still remains the scheduling input.'],
+            ['Required/Preferred/Sections-Preferred', 'Required: courses marked Required, all sections. Preferred: adds courses marked Preferred, still all sections open. Sections-Preferred: same courses, but narrowed to each student\'s chosen sections. Not Applied and Unclassified courses are excluded from all three.'],
+            ['Preferred Sections',          'Only used in the Sections-Preferred tier, where preferred sections narrow the allowed section options for each student-course request. The Required and Preferred tiers leave all sections open.'],
+            ['Sect.-Pref. Affected',      'Per window: how many students\' section preferences would be affected if that time were chosen. On Sections-Preferred it reflects the students actually restricted by their own section picks. Informational only on Required and Preferred, it does not affect the ranking.'],
+            ['Section-Pref Students',       'Sections-Preferred tier only (summary card). The number of students who set a preferred section on at least one course.'],
+            ['Courses w/ Section Pref',     'Sections-Preferred tier only (summary card). The number of unique courses that carry at least one student section preference.'],
           ].map(([term, def]) => (
             <div key={term} style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border, #f3f4f6)' }}>
               <dt style={{ fontWeight: 600, color: '#374151', fontSize: 12, marginBottom: 2 }}>{term}</dt>
@@ -229,12 +295,29 @@ function RunSummaryCards({ run }) {
   const checkFeasibility = !legacyMode; // self-conflict is ON unless legacy comparison mode was used
   const scoreColor = (v) => v === 0 ? '#16a34a' : v <= 3 ? '#d97706' : '#dc2626';
   const scoreBg    = (v) => v === 0 ? '#f0fdf4' : v <= 3 ? '#fffbeb' : '#fef2f2';
-  const cards = [
-    { label: 'Students',              value: summary.totalStudents,                       scored: false },
-    { label: 'Course Requests',       value: summary.totalCourseRequests,                 scored: false },
-    { label: 'Unique Courses',        value: summary.totalUniqueCourses,                  scored: false },
-    { label: 'Windows Evaluated',     value: summary.bestWindowsCount    ?? '\u2014',     scored: false },
-  ];
+  // Sections-Preferred only: swap Students / Windows Evaluated for the two
+  // section-preference metrics (students who set a preferred section; unique
+  // courses carrying one).
+  const isSectionsPreferred = run.mode === 'required_plus_preferred';
+  const sectionPref = isSectionsPreferred ? (() => {
+    const withPref = (run.results?.requestConstraintSummary ?? []).filter((r) => r.constraintMode === 'preferred');
+    return {
+      students: new Set(withPref.map((r) => r.studentName)).size,
+      courses:  new Set(withPref.map((r) => r.courseCode)).size,
+    };
+  })() : null;
+  const cardStudents = { label: 'Students',          value: summary.totalStudents,          scored: false };
+  const cardRequests = { label: 'Course Requests',   value: summary.totalCourseRequests,    scored: false };
+  const cardCourses  = { label: 'Unique Courses',    value: summary.totalUniqueCourses,     scored: false };
+  const cardWindows  = { label: 'Windows Evaluated', value: summary.bestWindowsCount ?? '\u2014', scored: false };
+  const cards = isSectionsPreferred
+    ? [
+        { label: 'Section-pref students',   value: sectionPref.students, scored: false },
+        { label: 'Courses w/ section pref', value: sectionPref.courses,  scored: false },
+        cardCourses,
+        cardRequests,
+      ]
+    : [cardCourses, cardRequests, cardStudents, cardWindows];
   return (
     <div style={{ overflowX: 'auto', marginBottom: 20, borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, minWidth: 600 }}>
@@ -258,7 +341,7 @@ function RunSummaryCards({ run }) {
 // ---------------------------------------------------------------------------
 // HeatmapGrid — browser heatmap of conflict counts
 // ---------------------------------------------------------------------------
-function HeatmapGrid({ heatmap, windows, onCellClick, selectedTime, selectedDay, checkFeasibility = false }) {
+function HeatmapGrid({ heatmap, windows, onCellClick, selectedTime, selectedDay, checkFeasibility = false, onBackgroundClick }) {
   if (!heatmap || Object.keys(heatmap).length === 0) return null;
 
   const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
@@ -273,6 +356,9 @@ function HeatmapGrid({ heatmap, windows, onCellClick, selectedTime, selectedDay,
 
   return (
     <div style={{ overflowX: 'auto' }}>
+      {/* table + a spacer strip to its right; only the spacer minimizes, so a
+          misclick inside the grid never closes the card. */}
+      <div style={{ display: 'flex', alignItems: 'stretch', width: 'max-content', minWidth: '100%' }}>
       <table style={{ borderCollapse: 'collapse', fontSize: 12, width: 'max-content' }}>
         <thead>
           <tr>
@@ -305,7 +391,7 @@ function HeatmapGrid({ heatmap, windows, onCellClick, selectedTime, selectedDay,
                 return (
                   <td key={day} style={{ padding: '2px 4px', textAlign: 'center' }}>
                     <button
-                      onClick={() => onCellClick && onCellClick(st, day)}
+                      onClick={(e) => { e.stopPropagation(); onCellClick && onCellClick(st, day); }}
                       title={`${DAYS_DISPLAY[day]} ${st}: ${cell.totalHardConflicts ?? cell.conflictRequests} total hard conflicts (${cell.conflictRequests} direct${cell.selfConflictStudents != null ? ` + ${cell.selfConflictStudents} self-conflict` : ''}), rank #${cell.rank}${hasUnknown ? ` (⚠ ${cell.feasibilityUnknownCount} unknown)` : ''}`}
                       style={{
                         width: 48,
@@ -347,6 +433,14 @@ function HeatmapGrid({ heatmap, windows, onCellClick, selectedTime, selectedDay,
           ))}
         </tbody>
       </table>
+        {onBackgroundClick && (
+          <div
+            onClick={onBackgroundClick}
+            title="Click to minimize"
+            style={{ flex: 1, minWidth: 24, marginLeft: 32, cursor: 'pointer' }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -382,6 +476,18 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
 
   const classColor = (cls) =>
     cls === 'required' ? '#16a34a' : cls === 'preferred' ? '#d97706' : '#6b7280';
+
+  // Preferred tier shows a section-preference-only check (the narrowing delta);
+  // Required shows the full preferred impact. Sections-Preferred shows the
+  // restricted detail inline in its red/blocked cards instead of a bottom panel.
+  const isSectionPrefView = runMode === 'preferred';
+  const prefImpact = win.preferredHardConflictImpact;
+  const narrowingOnlyImpacted = (prefImpact?.impactedStudents ?? [])
+    .map((s) => ({ ...s, impacts: s.impacts.filter((i) => i.narrowedByChoice) }))
+    .filter((s) => s.impacts.length > 0);
+  const prefNothingToShow = isSectionPrefView
+    ? (prefImpact?.preferredRestrictedStudents ?? 0) === 0
+    : prefImpact?.preferredHardConflicts === 0;
 
   function handleDebug(mode) {
     if (!cohortId || !cycleId) return;
@@ -464,7 +570,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
           {[
             { label: 'Total Hard Conflicts', value: totalHardConflicts, color: totalHardConflicts > 0 ? '#ef4444' : '#16a34a' },
             { label: 'Direct Conflict Requests', value: win.conflictRequests, color: win.conflictRequests > 0 ? '#dc2626' : '#6b7280' },
-            { label: 'Self-Conflict Students', value: selfConflictStudents,  color: selfConflictStudents > 0 ? '#d97706' : '#6b7280' },
+            { label: 'Self-Conflict Students', value: selfConflictStudents,  color: selfConflictStudents > 0 ? '#ef4444' : '#6b7280' },
             { label: 'Conflict-Affected Students', value: win.affectedStudents, color: '#2563eb' },
             { label: 'Non-Lab Partially Blocked', value: win.nonLabBlockedRequests ?? 0, color: '#6b7280', title: 'Partially blocked requests where actual lecture sections overlap the ZLP time — not just labs or recitations.' },
             { label: 'Partially Blocked Requests', value: win.blockedRequests, color: '#6b7280', title: 'Some section options overlap this ZLP time. At least one full section option still works. These are not hard conflicts.' },
@@ -584,7 +690,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {win.conflictCourses.map((c) => (
                 <div key={c.code}
-                  onClick={() => setViewCourse({ code: c.code, title: c.title })}
+                  onClick={() => setViewCourse({ code: c.code, title: c.title, highlightSections: conflictChosenSectionIds(c), isPreferred: c.classification === 'preferred' })}
                   title="View sections & times"
                   style={{
                     background: '#fef2f2', border: '1px solid #fecaca',
@@ -606,6 +712,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
                       </span>
                     )}
                   </div>
+                  <RestrictedStudentDetail item={c} />
                 </div>
               ))}
             </div>
@@ -619,7 +726,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
         {/* Self-Conflict Students — before blocked courses */}
         {selfConflictStudentNames.length > 0 && (
           <section style={{ marginBottom: 16 }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: 14, color: '#d97706' }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: 14, color: '#dc2626' }}>
               Self-Conflict Students ({selfConflictStudentNames.length})
             </h4>
             <p style={{ fontSize: 11, color: '#6b7280', margin: '0 0 8px' }}>
@@ -663,7 +770,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {visibleCourses.map((c) => (
                   <div key={c.code}
-                    onClick={() => setViewCourse({ code: c.code, title: c.title })}
+                    onClick={() => setViewCourse({ code: c.code, title: c.title, highlightSections: conflictChosenSectionIds(c), isPreferred: c.classification === 'preferred' })}
                     title="View sections & times"
                     style={{
                       background: '#fffbeb', border: '1px solid #fde68a',
@@ -695,6 +802,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
                         </span>
                       )}
                     </div>
+                    <RestrictedStudentDetail item={c} />
                   </div>
                 ))}
                 {hideSecondaryOnly && visibleCourses.length === 0 && (
@@ -707,28 +815,36 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
           );
         })()}
 
-        {/* Preferred Course Check (required_only only) */}
+        {/* Preferred Course Check (Required tier) / Section-Preference Check (Preferred tier) */}
         {win.preferredHardConflictImpact && (
           <section style={{ marginBottom: 16 }}>
             <h4 style={{ margin: '0 0 2px', fontSize: 14, color: '#374151' }}>
-              Preferred Course Check
+              {isSectionPrefView ? 'Section-Preference Check' : 'Preferred Course Check'}
             </h4>
             <p style={{ margin: '0 0 8px', fontSize: 12, color: '#9ca3af' }}>
-              Additional check for this Required-Only time. This is informational and does not affect the ranking.
+              {isSectionPrefView
+                ? 'Informational only — does not affect the ranking. Shows students whose chosen sections would all be blocked here if section preferences were honored (the Sections-Preferred tier).'
+                : 'Additional check for this Required-Only time. This is informational and does not affect the ranking.'}
             </p>
-            {win.preferredHardConflictImpact.preferredHardConflicts === 0 ? (
+            {prefNothingToShow ? (
               <p style={{ fontSize: 13, color: '#16a34a', margin: 0, fontWeight: 500 }}>
-                ✓ Good news: this Required-Only time does not make any preferred courses impossible.
+                {isSectionPrefView
+                  ? '✓ Good news: no student’s chosen sections are all blocked by this time.'
+                  : '✓ Good news: this Required-Only time does not make any preferred courses impossible.'}
               </p>
             ) : (
               <>
                 <p style={{ fontSize: 13, color: '#d97706', margin: '0 0 10px', fontWeight: 500 }}>
-                  {(win.preferredHardConflictImpact.preferredGenuineImpossibleCourses ?? win.preferredHardConflictImpact.preferredHardConflicts) > 0
-                    ? '⚠ Warning: this Required-Only time would make some preferred courses impossible.'
-                    : '⚠ Note: no preferred course is impossible on its own here. But, some students restricted their sections to ones that all conflict with this time.'}
+                  {isSectionPrefView
+                    ? '⚠ Note: some students narrowed their sections to ones that all conflict with this time.'
+                    : (win.preferredHardConflictImpact.preferredGenuineImpossibleCourses ?? win.preferredHardConflictImpact.preferredHardConflicts) > 0
+                      ? '⚠ Warning: this Required-Only time would make some preferred courses impossible.'
+                      : '⚠ Note: no preferred course is impossible on its own here. But, some students restricted their sections to ones that all conflict with this time.'}
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                  {[
+                  {(isSectionPrefView ? [
+                    { label: 'Students affected', value: win.preferredHardConflictImpact.preferredRestrictedStudents ?? 0, color: '#6d28d9', always: true },
+                  ] : [
                     { label: 'Students affected',  value: win.preferredHardConflictImpact.preferredAffectedStudents, color: '#2563eb', always: true },
                     { label: 'Impossible courses', value: win.preferredHardConflictImpact.preferredGenuineImpossibleCourses ?? win.preferredHardConflictImpact.preferredHardConflicts, color: '#d97706', always: true },
                     { label: 'Direct conflict',    value: win.preferredHardConflictImpact.preferredGenuineDirectConflicts ?? win.preferredHardConflictImpact.preferredDirectConflictRequests, color: '#dc2626', always: true },
@@ -737,22 +853,21 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
                     // Last + lowest priority: students whose impossibility is their own
                     // section narrowing (course still schedulable on all sections).
                     { label: 'Restricted students', value: win.preferredHardConflictImpact.preferredRestrictedStudents ?? 0, color: '#6d28d9', always: true, title: 'Number of students (not courses) whose preferred course is only impossible because they narrowed it to specific sections that all conflict. The course itself is still schedulable on all sections.' },
-                  ].filter(({ value, always }) => always || value > 0).map(({ label, value, color, title }) => (
+                  ]).filter(({ value, always }) => always || value > 0).map(({ label, value, color, title }) => (
                     <div key={label} title={title} style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '5px 10px', textAlign: 'center', minWidth: 80 }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color }}>{value}</div>
                       <div style={{ fontSize: 10, color: '#6b7280' }}>{label}</div>
                     </div>
                   ))}
                 </div>
-                {win.preferredHardConflictImpact.impactedStudents?.length > 0 && (() => {
-                  const allImpacted = win.preferredHardConflictImpact.impactedStudents;
+                {(isSectionPrefView ? narrowingOnlyImpacted : win.preferredHardConflictImpact.impactedStudents)?.length > 0 && (() => {
+                  const allImpacted = isSectionPrefView ? narrowingOnlyImpacted : win.preferredHardConflictImpact.impactedStudents;
                   // Students whose impossible-course conflict is caused (at least
                   // partly) by their own section choice (narrowing).
                   const sectionChoiceCount = allImpacted.filter((s) => s.impacts.some((i) => i.narrowedByChoice)).length;
-                  // When hiding section-choice conflicts, drop the narrowed impacts
-                  // and any student left with nothing — leaving only courses that are
-                  // impossible regardless of the student's section preferences.
-                  const visibleImpacted = hideSectionChoice
+                  // Required tier can hide section-choice conflicts; the Preferred
+                  // tier already shows only those, so no toggle.
+                  const visibleImpacted = (!isSectionPrefView && hideSectionChoice)
                     ? allImpacted
                         .map((s) => ({ ...s, impacts: s.impacts.filter((i) => !i.narrowedByChoice) }))
                         .filter((s) => s.impacts.length > 0)
@@ -761,9 +876,11 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                       <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>
-                        Students with impossible preferred courses ({hideSectionChoice ? `${visibleImpacted.length} of ${allImpacted.length}` : allImpacted.length})
+                        {isSectionPrefView
+                          ? `Students with all chosen sections blocked (${allImpacted.length})`
+                          : `Students with impossible preferred courses (${hideSectionChoice ? `${visibleImpacted.length} of ${allImpacted.length}` : allImpacted.length})`}
                       </div>
-                      {sectionChoiceCount > 0 && (
+                      {!isSectionPrefView && sectionChoiceCount > 0 && (
                         <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#6b7280', cursor: 'pointer', userSelect: 'none' }}>
                           <input
                             type="checkbox"
@@ -786,7 +903,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
                         const boxCourse = s.impacts.find((i) => i.courseCode);
                         return (
                         <div key={s.studentEmail ?? s.studentName}
-                          onClick={boxCourse ? () => setViewCourse({ code: boxCourse.courseCode, title: boxCourse.courseTitle }) : undefined}
+                          onClick={boxCourse ? () => setViewCourse({ code: boxCourse.courseCode, title: boxCourse.courseTitle, highlightSections: sectionIdsFromLabels(boxCourse.overlappingSectionLabels), isPreferred: boxCourse.classification === 'preferred' }) : undefined}
                           title={boxCourse ? 'View sections & times' : undefined}
                           style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px', cursor: boxCourse ? 'pointer' : undefined }}>
                           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
@@ -819,7 +936,7 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
                           </div>
                           {s.impacts.map((impact, i) => (
                             <div key={i}
-                              onClick={impact.courseCode ? (e) => { e.stopPropagation(); setViewCourse({ code: impact.courseCode, title: impact.courseTitle }); } : undefined}
+                              onClick={impact.courseCode ? (e) => { e.stopPropagation(); setViewCourse({ code: impact.courseCode, title: impact.courseTitle, highlightSections: sectionIdsFromLabels(impact.overlappingSectionLabels), isPreferred: impact.classification === 'preferred' }); } : undefined}
                               style={{ fontSize: 12, color: '#374151', marginBottom: 6, cursor: impact.courseCode ? 'pointer' : undefined }}>
                               {/* Line 1: badge · classification · course — title */}
                               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
@@ -880,9 +997,11 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
                 })()}
               </>
             )}
-            {win.preferredHardConflictImpact.preferredHardConflicts === 0 && (
+            {prefNothingToShow && (
               <p style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 0' }}>
-                This is informational only. Preferred courses do not affect the Required-Only ranking. Preferred blocked sections are ignored here because the course is still schedulable.
+                {isSectionPrefView
+                  ? 'Informational only. All sections stay open in the Preferred tier; this shows what the Sections-Preferred tier would block.'
+                  : 'This is informational only. Preferred courses do not affect the Required-Only ranking. Preferred blocked sections are ignored here because the course is still schedulable.'}
               </p>
             )}
           </section>
@@ -1004,6 +1123,8 @@ function WindowDetailModal({ win, onClose, cohortId, cycleId, termCode = null, c
           code={viewCourse.code}
           title={viewCourse.title}
           termCode={termCode}
+          highlightSections={viewCourse.highlightSections}
+          isPreferred={viewCourse.isPreferred}
           onClose={() => setViewCourse(null)}
         />
       )}
@@ -1034,12 +1155,25 @@ function buildWindowColumns(checkFeasibility, isRequiredOnly) {
     ...(isRequiredOnly ? [
       { key: 'prefHardConflicts',    label: 'Pref. Hard Conflicts', align: 'right', maxKey: 'prefHardConflicts'    },
       { key: 'prefAffectedStudents', label: 'Pref. Affected',       align: 'right', maxKey: 'prefAffectedStudents' },
+    ] : []),
+    // Section Prefs Affected \u2014 the last non-unknown column, right after Pref.
+    // Affected and before the unknown columns.
+    { key: 'sectionPrefsAffected', label: 'Sect.-Pref. Affected', align: 'right', maxKey: 'sectionPrefsAffected' },
+    ...(isRequiredOnly ? [
       { key: 'prefUnknown',          label: '\u26a0 Pref. Unknown', align: 'center'                               },
     ] : []),
     ...(checkFeasibility ? [
       { key: 'feasibilityUnknown', label: '\u26a0 Unknown',         align: 'center'                               },
     ] : []),
   ];
+}
+
+// Purple heatmap background for the Section Prefs Affected column — light at 0,
+// deeper purple as the count approaches the max across windows.
+function sectionPrefBg(value, max) {
+  if (!max || !value) return '#faf5ff';
+  const ratio = Math.min(value / max, 1);
+  return `rgba(109, 40, 217, ${(0.1 + ratio * 0.4).toFixed(2)})`;
 }
 
 /** Extract the display value for a column key from a window object. */
@@ -1056,6 +1190,17 @@ function getWindowValue(win, colKey) {
     case 'prefHardConflicts':    return win.preferredHardConflictImpact?.preferredHardConflicts ?? 0;
     case 'prefAffectedStudents': return win.preferredHardConflictImpact?.preferredAffectedStudents ?? 0;
     case 'prefUnknown':          return win.preferredHardConflictImpact?.preferredFeasibilityUnknownStudents ?? 0;
+    case 'sectionPrefsAffected': {
+      // Required/Preferred have the impact-pass count; Sections-Preferred derives
+      // it from the restricted students in its own conflict/blocked cards.
+      if (win.preferredHardConflictImpact?.preferredRestrictedStudents != null) {
+        return win.preferredHardConflictImpact.preferredRestrictedStudents;
+      }
+      const s = new Set();
+      for (const c of (win.conflictCourses ?? [])) for (const n of (c.restrictedStudentNames ?? [])) s.add(n);
+      for (const c of (win.blockedCourses  ?? [])) for (const n of (c.restrictedStudentNames ?? [])) s.add(n);
+      return s.size;
+    }
     default:                     return null;
   }
 }
@@ -1144,6 +1289,10 @@ function WindowRow({ win, onOpenModal, maxValues, checkFeasibility = false, isRe
             )}
           </td>
         );
+      }
+      case 'sectionPrefsAffected': {
+        const v = getWindowValue(win, key);
+        return <td key={key} style={{ padding: '6px 8px', textAlign: 'right', background: sectionPrefBg(v, maxValues?.sectionPrefsAffected ?? 0), color: '#4c1d95', fontWeight: v > 0 ? 600 : 400 }}>{v}</td>;
       }
       default:
         return <td key={key} />;
@@ -1283,6 +1432,10 @@ function WindowGroupRow({ group, onOpenModal, maxValues, checkFeasibility, isReq
           </td>
         );
       }
+      case 'sectionPrefsAffected': {
+        const v = getWindowValue(first, key);
+        return <td key={key} style={{ padding: '6px 8px', textAlign: 'right', background: sectionPrefBg(v, maxValues?.sectionPrefsAffected ?? 0), color: '#4c1d95', fontWeight: v > 0 ? 600 : 400 }}>{v}</td>;
+      }
       default:
         return <td key={key} />;
     }
@@ -1355,7 +1508,8 @@ function ResultsPanel({ run, cohortId, cycleId }) {
     blockedStudents:     Math.max(acc.blockedStudents,     w.blockedStudents     ?? 0),
     prefHardConflicts:   Math.max(acc.prefHardConflicts   ?? 0, w.preferredHardConflictImpact?.preferredHardConflicts   ?? 0),
     prefAffectedStudents:Math.max(acc.prefAffectedStudents ?? 0, w.preferredHardConflictImpact?.preferredAffectedStudents ?? 0),
-  }), { totalHardConflicts: 0, conflictRequests: 0, affectedStudents: 0, selfConflictStudents: 0, nonLabBlockedRequests: 0, blockedRequests: 0, blockedStudents: 0, prefHardConflicts: 0, prefAffectedStudents: 0 });
+    sectionPrefsAffected:Math.max(acc.sectionPrefsAffected ?? 0, getWindowValue(w, 'sectionPrefsAffected')),
+  }), { totalHardConflicts: 0, conflictRequests: 0, affectedStudents: 0, selfConflictStudents: 0, nonLabBlockedRequests: 0, blockedRequests: 0, blockedStudents: 0, prefHardConflicts: 0, prefAffectedStudents: 0, sectionPrefsAffected: 0 });
 
   return (
     <div style={{ minWidth: 0, width: '100%' }}>
@@ -1401,7 +1555,7 @@ function ResultsPanel({ run, cohortId, cycleId }) {
       )}
 
       {/* Heatmap */}
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card" style={{ marginBottom: 20, background: '#f4f4f5' }}>
         <div
           onClick={() => setShowHeatmap((v) => !v)}
           title={showHeatmap ? 'Click to minimize' : 'Click to expand'}
@@ -1438,6 +1592,7 @@ function ResultsPanel({ run, cohortId, cycleId }) {
               selectedTime={selectedCell?.time}
               selectedDay={selectedCell?.day}
               checkFeasibility={checkFeasibility}
+              onBackgroundClick={() => setShowHeatmap(false)}
             />
           </>
         )}
@@ -1448,7 +1603,7 @@ function ResultsPanel({ run, cohortId, cycleId }) {
         className="card"
         style={fullscreenTable
           ? { position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', background: 'var(--color-card-bg,#fff)', overflowY: 'auto', borderRadius: 0, margin: 0 }
-          : { marginBottom: 20 }}
+          : { marginBottom: 20, background: '#f4f4f5' }}
       >
         <div
           onClick={() => setShowWindows((v) => !v)}
@@ -1466,7 +1621,12 @@ function ResultsPanel({ run, cohortId, cycleId }) {
               type="button"
               onClick={(e) => { e.stopPropagation(); setFullscreenTable((f) => !f); if (!showWindows) setShowWindows(true); }}
               title={fullscreenTable ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
-              style={{ fontSize: 11, padding: '3px 8px', cursor: 'pointer', border: '1px solid var(--color-border,#d1d5db)', borderRadius: 4, background: 'var(--color-surface,#f9fafb)', color: 'var(--color-text-muted)' }}
+              style={{
+                background: 'none', border: '1px solid var(--color-border, #d1d5db)',
+                borderRadius: 6, padding: '3px 10px',
+                fontSize: 12, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 4,
+                cursor: 'pointer',
+              }}
             >
               {fullscreenTable ? '✕ Exit Fullscreen' : '⛶ Fullscreen'}
             </button>
@@ -1875,7 +2035,7 @@ function RunTab({ onRunComplete }) {
                 <div>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>Use legacy Python scheduler</span>
                   <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2, lineHeight: 1.5 }}>
-                    Runs the legacy scheduler mode. This skips self-conflict checks and only evaluates direct conflicts / partially blocked course options.
+                    Runs the legacy scheduler mode. This skips self-conflict checks and only evaluates direct conflicts/partially blocked course options.
                   </div>
                 </div>
               </label>
@@ -1888,7 +2048,7 @@ function RunTab({ onRunComplete }) {
                 <li>Step size: 5 minutes</li>
                 <li>Grid: 08:00 &ndash; 16:10 latest start (99 starts &times; 5 days = 495 windows)</li>
                 <li>Days: Monday &ndash; Friday</li>
-                <li>Runs twice: Required Only &amp; Required + Preferred</li>
+                <li>Runs three times: Required, Preferred &amp; Sections-Preferred</li>
               </ul>
             </div>
 
@@ -2061,25 +2221,27 @@ function ResultsTab({ jumpToRunId, jumpCohortId, jumpCycleId }) {
       return;
     }
 
+    // Stale guard: rapid tab/run switches leave older requests in flight; they
+    // must not overwrite the newer selection's data or clear its loading state.
+    let stale = false;
     getAlgorithmRun(modeRun._id)
-      .then((res) => setFullRun(res.data?.run ?? null))
-      .catch(() => setError('Failed to load run details.'))
-      .finally(() => setLoadingRun(false));
+      .then((res) => { if (!stale) setFullRun(res.data?.run ?? null); })
+      .catch(() => { if (!stale) setError('Failed to load run details.'); })
+      .finally(() => { if (!stale) setLoadingRun(false); });
+    return () => { stale = true; };
   }, [selectedRunId, selectedMode, runs]);
 
-  // Group runs by pair (created within 30 seconds of each other)
+  // Group runs into batches (created within 30 seconds of each other) — one batch
+  // per algorithm invocation, holding up to 3 mode runs.
   const runPairs = [];
   const seen = new Set();
   for (const r of runs) {
     if (seen.has(r._id)) continue;
-    const peer = runs.find((x) =>
-      x._id !== r._id &&
-      !seen.has(x._id) &&
-      Math.abs(new Date(x.createdAt) - new Date(r.createdAt)) < 30000
-    );
-    runPairs.push({ anchor: r, peer });
-    seen.add(r._id);
-    if (peer) seen.add(peer._id);
+    const members = runs
+      .filter((x) => !seen.has(x._id) && Math.abs(new Date(x.createdAt) - new Date(r.createdAt)) < 30000)
+      .sort((a, b) => MODE_ORDER.indexOf(a.mode) - MODE_ORDER.indexOf(b.mode));
+    members.forEach((x) => seen.add(x._id));
+    runPairs.push({ anchor: r, members });
   }
 
   return (
@@ -2115,8 +2277,8 @@ function ResultsTab({ jumpToRunId, jumpCohortId, jumpCycleId }) {
           {/* Run selector sidebar */}
           <div style={{ flex: '0 0 200px', minWidth: 160 }}>
             <strong style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>Run History</strong>
-            {runPairs.slice(0, 3).map(({ anchor, peer }) => {
-              const isSelected = selectedRunId === anchor._id || selectedRunId === peer?._id;
+            {runPairs.slice(0, 6).map(({ anchor, members }) => {
+              const isSelected = members.some((mr) => mr._id === selectedRunId);
               return (
                 <button
                   key={anchor._id}
@@ -2146,18 +2308,22 @@ function ResultsTab({ jumpToRunId, jumpCohortId, jumpCycleId }) {
           {/* Mode selector + results */}
           <div style={{ flex: '1 1 300px', minWidth: 0, width: 0 }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, paddingBottom: 4, borderBottom: '1px solid var(--color-border, #e5e7eb)', alignItems: 'center', flexWrap: 'wrap' }}>
-              {['required_only', 'required_plus_preferred'].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setSelectedMode(m)}
-                  className={selectedMode === m ? 'tab-btn active' : 'tab-btn'}
-                  style={{ fontSize: 13, color: selectedMode === m ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
-                >
-                  {modeLabel(m)}
-                </button>
-              ))}
+              {/* Equal-width columns so the three tabs are evenly distributed
+                  regardless of label length (and don't shift when bolded). */}
+              <div style={{ display: 'inline-grid', gridAutoFlow: 'column', gridAutoColumns: '1fr', gap: 8 }}>
+                {MODE_ORDER.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setSelectedMode(m)}
+                    className={selectedMode === m ? 'tab-btn active' : 'tab-btn'}
+                    style={{ fontSize: 13, justifyContent: 'center', color: selectedMode === m ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
+                  >
+                    <TabLabel>{modeLabel(m)}</TabLabel>
+                  </button>
+                ))}
+              </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                {['required_only', 'required_plus_preferred'].map((m) => {
+                {MODE_ORDER.map((m) => {
                   const r = getPeerRun(m);
                   return r ? (
                     <button
@@ -2231,15 +2397,16 @@ function DownloadsTab() {
     }
   };
 
-  // Group by pair
+  // Group by batch (created within 30s) — up to 3 mode runs per invocation
   const pairs = [];
   const seen = new Set();
   for (const r of runs) {
     if (seen.has(r._id)) continue;
-    const peer = runs.find((x) => x._id !== r._id && !seen.has(x._id) && Math.abs(new Date(x.createdAt) - new Date(r.createdAt)) < 30000);
-    pairs.push({ runs: [r, peer].filter(Boolean) });
-    seen.add(r._id);
-    if (peer) seen.add(peer._id);
+    const members = runs
+      .filter((x) => !seen.has(x._id) && Math.abs(new Date(x.createdAt) - new Date(r.createdAt)) < 30000)
+      .sort((a, b) => MODE_ORDER.indexOf(a.mode) - MODE_ORDER.indexOf(b.mode));
+    members.forEach((x) => seen.add(x._id));
+    pairs.push({ runs: members });
   }
 
   return (
@@ -2295,23 +2462,27 @@ function DownloadsTab() {
 // ---------------------------------------------------------------------------
 function PostRunPanel({ result, onViewResults }) {
   const [mode, setMode] = useState('required_only');
-  const { requiredOnlyRun, requiredPlusPreferredRun } = result ?? {};
-  const run = mode === 'required_only' ? requiredOnlyRun : requiredPlusPreferredRun;
+  const runsByMode = {
+    required_only:            result?.requiredOnlyRun,
+    preferred:                result?.preferredRun,
+    required_plus_preferred:  result?.requiredPlusPreferredRun,
+  };
+  const run = runsByMode[mode];
 
   return (
     <div>
       <div className="alert alert-info" style={{ marginBottom: 20 }}>
         &#10003; Algorithm completed successfully. Results are saved and available in the Results tab.
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, paddingBottom: 4, borderBottom: '1px solid var(--color-border, #e5e7eb)' }}>
-        {['required_only', 'required_plus_preferred'].map((m) => (
+      <div style={{ display: 'inline-grid', gridAutoFlow: 'column', gridAutoColumns: '1fr', gap: 8, marginBottom: 16, paddingBottom: 4, borderBottom: '1px solid var(--color-border, #e5e7eb)' }}>
+        {MODE_ORDER.map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
             className={mode === m ? 'tab-btn active' : 'tab-btn'}
-            style={{ fontSize: 13, color: mode === m ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
+            style={{ fontSize: 13, justifyContent: 'center', color: mode === m ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
           >
-            {modeLabel(m)}
+            <TabLabel>{modeLabel(m)}</TabLabel>
           </button>
         ))}
       </div>
@@ -2386,7 +2557,7 @@ export default function AdminAlgorithm() {
       )}
       {tab === 'results' && (
         <ResultsTab
-          jumpToRunId={lastResult ? (lastResult.requiredOnlyRun?._id ?? lastResult.requiredPlusPreferredRun?._id) : null}
+          jumpToRunId={lastResult ? (lastResult.requiredOnlyRun?._id ?? lastResult.preferredRun?._id ?? lastResult.requiredPlusPreferredRun?._id) : null}
           jumpCohortId={lastRunCohortId}
           jumpCycleId={lastRunCycleId}
         />

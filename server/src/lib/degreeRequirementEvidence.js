@@ -6,8 +6,8 @@
  * structured requirement evidence bundle used by the classifier.
  *
  * Separation of concerns:
- *  - Degree requirement evidence --> source of truth for classification
- *  - Dependency graph edges     --> used only for prereq/coreq sequencing
+ *  - Degree requirement evidence → source of truth for classification
+ *  - Dependency graph edges     → used only for prereq/coreq sequencing
  *
  * Evidence bundle shape:
  *  {
@@ -240,7 +240,7 @@ function extractRequirementEvidence(graph, opts = {}) {
           requiredCount: 1,
           groupRule:    'choose_one',
           creditHours:  node.creditHours ?? null,
-          // isExact=true --> small explicit list of exact course codes, no ranges, not a broad pool
+          // isExact=true → small explicit list of exact course codes, no ranges, not a broad pool
           // Classifier will promote the student's selected option to 'required'
           isExact:      codes.length >= 2 && !hasRanges,
         });

@@ -157,4 +157,19 @@ function validateProgramIds(ids, type) {
   return { valid, invalid };
 }
 
-module.exports = { listAcademicPrograms, listMajors, listMinors, getAcademicProgram, validateProgramIds };
+/** True when the same program id appears more than once. */
+function hasDuplicateIds(ids) {
+  const list = (ids ?? []).filter(Boolean);
+  return new Set(list).size !== list.length;
+}
+
+/** Most minors a student may be enrolled in at once. */
+const MAX_MINORS = 2;
+
+/** Majors beyond the primary one. Still gated on secondaryProgramEnabled. */
+const MAX_ADDITIONAL_MAJORS = 1;
+
+module.exports = {
+  listAcademicPrograms, listMajors, listMinors, getAcademicProgram, validateProgramIds,
+  hasDuplicateIds, MAX_MINORS, MAX_ADDITIONAL_MAJORS,
+};

@@ -19,6 +19,8 @@ const cohortSchema = new mongoose.Schema(
     // Join code fields
     joinCode:          { type: String, uppercase: true, trim: true, minlength: 6, maxlength: 6, default: null },
     joinCodeEnabled:   { type: Boolean, default: false },
+    // How long the code stays active after enabling. 'never' = no expiry.
+    joinCodeDuration:  { type: String, enum: ['1d', '3d', '7d', '30d', 'never'], default: '3d' },
     joinCodeExpiresAt: { type: Date, default: null },
     joinCodeUpdatedAt: { type: Date, default: null },
     joinCodeUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

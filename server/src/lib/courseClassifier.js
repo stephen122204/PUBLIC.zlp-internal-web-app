@@ -15,19 +15,19 @@
  * Admin manual overrides are preserved in finalClassification.
  *
  * Priority order:
- *  1. Missing academic profile / no programs       --> unclassified
- *  2. No non-empty evidence for any program        --> unclassified
- *  3. Offering confirmed NOT available             --> not_applied
- *  4. Course already completed/passed              --> not_applied
- *  5. Exact required course match (major only)     --> required*
- *  6. Exact required course match (minor program)  --> preferred (minors never force-required)
- *  7. Senior design/capstone requirement match     --> required (single) / preferred (choice)
+ *  1. Missing academic profile / no programs       → unclassified
+ *  2. No non-empty evidence for any program        → unclassified
+ *  3. Offering confirmed NOT available             → not_applied
+ *  4. Course already completed/passed              → not_applied
+ *  5. Exact required course match (major only)     → required*
+ *  6. Exact required course match (minor program)  → preferred (minors never force-required)
+ *  7. Senior design/capstone requirement match     → required (single) / preferred (choice)
  *  8. Student-selected option from exact required
- *     choice/equivalency group (isExact=true)      --> required (first/only); preferred if duplicate
- *  9. Required choice group match (isExact=false)  --> preferred (broad/flexible pool)
- * 10. Pick-N elective pool match                   --> preferred
- * 11. Student semester plan only                   --> preferred
- * 12. No match                                     --> preferred (may count as elective)
+ *     choice/equivalency group (isExact=true)      → required (first/only); preferred if duplicate
+ *  9. Required choice group match (isExact=false)  → preferred (broad/flexible pool)
+ * 10. Pick-N elective pool match                   → preferred
+ * 11. Student semester plan only                   → preferred
+ * 12. No match                                     → preferred (may count as elective)
  *
  * *required is demoted to not_applied when prerequisites are confirmed missing.
  */
@@ -233,16 +233,16 @@ function classifyCourseAgainstProgram(courseCode, programGraph) {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 7 — Flexible requirement: check if only viable option --> required
+// Phase 7 — Flexible requirement: check if only viable option → required
 // ---------------------------------------------------------------------------
 
 /**
  * For each flexible/choice group node the course matches, check if all
  * other choices in that group are NOT viable (not offered, etc.).
- * If so, the course is the only viable option --> required.
+ * If so, the course is the only viable option → required.
  *
  * This is conservative: we only promote if we can confidently determine
- * all alternatives are not offered. Unknown offering --> stay as preferred.
+ * all alternatives are not offered. Unknown offering → stay as preferred.
  */
 async function evaluateFlexibleRequirementMatch(courseCode, graph, activeCycle, completedCodes) {
   const matched = findMatchingNodes(courseCode, graph).filter((n) =>
@@ -517,14 +517,14 @@ async function classifyCourseRequest(courseRequest, context) {
     };
   }
 
-  // ── 0b. Transfer credit --> not_applied ──────────────────────────────────
+  // ── 0b. Transfer credit → not_applied ──────────────────────────────────
   // Transfer credit is earned outside Texas A&M; only A&M courses are scheduled,
   // so a request matching a transfer course is never inserted, regardless of any
   // other check.
   if (transferCodes.has(code)) {
     return {
       systemClassification: 'not_applied',
-      reason:   `${code} is transfer credit; only Texas A&M courses are scheduled.`,
+      reason:   `${code} is transfer credit, only Texas A&M courses are scheduled.`,
       warnings,
       evidence: { ...evidence, source: 'transfer_credit' },
     };
@@ -579,7 +579,7 @@ async function classifyCourseRequest(courseRequest, context) {
     };
   }
 
-  // ── 3. Already completed --> not_applied ─────────────────────────────────
+  // ── 3. Already completed → not_applied ─────────────────────────────────
   if (completedCodes.has(code)) {
     return {
       systemClassification: 'not_applied',
@@ -753,7 +753,7 @@ async function classifyCourseRequest(courseRequest, context) {
         break;
       }
 
-      // This course's path is the committed one (or no path is complete yet) --> Required.
+      // This course's path is the committed one (or no path is complete yet) → Required.
       evidence.matchedNodes.push({
         programId:   prog.programId,
         matchType:   'path_option',
@@ -788,9 +788,9 @@ async function classifyCourseRequest(courseRequest, context) {
       // ── Priority 6: Required choice group ────────────────────────────────
       // Two sub-cases:
       //  A. isExact=true  — small explicit list (AERO 430 / MATH 401 / MATH 412)
-      //                     --> student's selected option is Required
+      //                     → student's selected option is Required
       //  B. isExact=false — broad/flexible pool (single-code elective, CHEM 120/UCC)
-      //                     --> stays Preferred
+      //                     → stays Preferred
 
       const groupCodesLabel = (match.item.codes ?? []).join(' / ');
 
@@ -969,7 +969,7 @@ async function classifyCourseRequest(courseRequest, context) {
               bestSource = 'required_choice_group';
             }
           } else {
-            // Only (or first) requested option from this exact required group --> Required
+            // Only (or first) requested option from this exact required group → Required
             evidence.matchedNodes.push({
               programId:                     prog.programId,
               matchType:                     'required_choice',
@@ -1046,7 +1046,7 @@ async function classifyCourseRequest(courseRequest, context) {
     bestSource = 'student_plan';
   }
 
-  // ── 10. No match at all --> preferred (may count as elective) ────
+  // ── 10. No match at all → preferred (may count as elective) ────
   if (!bestClassification) {
     return {
       systemClassification: 'preferred',
@@ -1099,7 +1099,7 @@ async function applyClassificationToCourseRequest(courseRequest, result) {
  * For each exact required choice group across all programs, find which
  * (if any) of the student's requested courses fall into that group.
  *
- * Returns a map:  groupId --> { firstCode, allRequestedCodes, groupLabel, programId }
+ * Returns a map:  groupId → { firstCode, allRequestedCodes, groupLabel, programId }
  *   firstCode          — first requested code that appears in this group (by request-array order)
  *   allRequestedCodes  — all requested codes in this group
  *

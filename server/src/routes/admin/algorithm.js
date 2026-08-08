@@ -4,7 +4,7 @@ const router   = express.Router();
 const mongoose = require('mongoose');
 
 const { requireAdmin } = require('../../middleware/auth');
-const { runBothZlpModes, buildExcelWorkbook, buildAlgorithmDiagnostic, buildWindowDebug, buildWindowCountDebug } = require('../../lib/zlpAlgorithm');
+const { runAllZlpModes, buildExcelWorkbook, buildAlgorithmDiagnostic, buildWindowDebug, buildWindowCountDebug } = require('../../lib/zlpAlgorithm');
 const AlgorithmRun = require('../../models/AlgorithmRun');
 
 // POST /api/admin/algorithm/run
@@ -21,7 +21,7 @@ router.post('/algorithm/run', requireAdmin, async (req, res) => {
   }
 
   try {
-    const { requiredOnlyRun, requiredPlusPreferredRun } = await runBothZlpModes({
+    const { requiredOnlyRun, preferredRun, requiredPlusPreferredRun } = await runAllZlpModes({
       cohortId,
       schedulingCycleId,
       includeDraftSubmissions: Boolean(includeDraftSubmissions),
@@ -46,6 +46,7 @@ router.post('/algorithm/run', requireAdmin, async (req, res) => {
 
     return res.json({
       requiredOnlyRun:            serializeRun(requiredOnlyRun),
+      preferredRun:               serializeRun(preferredRun),
       requiredPlusPreferredRun:   serializeRun(requiredPlusPreferredRun),
     });
   } catch (err) {
@@ -119,7 +120,9 @@ router.get('/algorithm/runs/:runId/download', requireAdmin, async (req, res) => 
       ),
     ]);
 
-    const mode     = run.mode === 'required_only' ? 'required-only' : 'required-plus-preferred';
+    const mode     = run.mode === 'required_only' ? 'required'
+                   : run.mode === 'preferred'     ? 'preferred'
+                   : 'sections-preferred';
     const filename = `zlp-algorithm-${mode}-${run._id}.xlsx`;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

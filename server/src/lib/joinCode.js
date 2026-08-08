@@ -11,6 +11,30 @@ const CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // excludes O, I, 0, 1
 const CODE_LENGTH = 6;
 const MAX_ATTEMPTS = 20;
 
+// Preset durations a join code can stay active. 'never' = no expiry (null).
+const DAY_MS = 24 * 60 * 60 * 1000;
+const JOIN_CODE_DURATION_MS = {
+  '1d':  1  * DAY_MS,
+  '3d':  3  * DAY_MS,
+  '7d':  7  * DAY_MS,
+  '30d': 30 * DAY_MS,
+  'never': null,
+};
+const DEFAULT_JOIN_CODE_DURATION = '3d';
+
+// Coerce any input to a valid preset key, falling back to the default.
+function normalizeJoinCodeDuration(duration) {
+  return Object.prototype.hasOwnProperty.call(JOIN_CODE_DURATION_MS, duration)
+    ? duration
+    : DEFAULT_JOIN_CODE_DURATION;
+}
+
+// Expiry Date for a duration key, or null for 'never'.
+function resolveJoinCodeExpiry(duration, from = new Date()) {
+  const ms = JOIN_CODE_DURATION_MS[normalizeJoinCodeDuration(duration)];
+  return ms == null ? null : new Date(from.getTime() + ms);
+}
+
 /**
  * Normalize a join code: uppercase and strip non-alphanumeric characters.
  */
@@ -55,4 +79,7 @@ module.exports = {
   validateJoinCodeFormat,
   generateJoinCode,
   generateUniqueJoinCode,
+  normalizeJoinCodeDuration,
+  resolveJoinCodeExpiry,
+  DEFAULT_JOIN_CODE_DURATION,
 };

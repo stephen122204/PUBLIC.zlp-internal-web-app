@@ -1,9 +1,10 @@
 'use strict';
 /**
- * Parser for TAMU "Grade Distribution Report" PDFs (one per college per
- * semester, ~200+ pages). How the PDFs are fetched is removed in this public
- * repo — see README — but this parser just takes a PDF buffer and works on
- * any copy of the report, however you got it.
+ * Parser for TAMU "Grade Distribution Report" PDFs.
+ *
+ * Source: https://web-as.tamu.edu/gradereports/  →  POST /gradereports/Home/ShowReportPage
+ *   body: SelectedYear=2025&SelectedSemester=SPRING|SUMMER|FALL&SelectedCollege=EN
+ *   returns: one PDF per college per semester (≈200+ pages).
  *
  * Each section is one fixed-width row:
  *   SECTION        A  B  C  D  F   A-F  GPA   I S U Q X TOTAL INSTRUCTOR

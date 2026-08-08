@@ -1,8 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+import { API_BASE_URL } from '../config';
 
 export default function LoginPage() {
   const handleGoogleLogin = () => {
-    window.location.href = `${API_BASE}/api/auth/google`;
+    window.location.href = `${API_BASE_URL}/api/auth/google`;
   };
 
   return (

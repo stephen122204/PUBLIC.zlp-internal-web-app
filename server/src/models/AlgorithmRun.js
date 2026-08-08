@@ -32,7 +32,7 @@ const schema = new mongoose.Schema({
   schedulingCycleId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchedulingCycle', required: true },
   mode: {
     type: String,
-    enum: ['required_only', 'required_plus_preferred'],
+    enum: ['required_only', 'preferred', 'required_plus_preferred'],
     required: true,
   },
   status: {

@@ -10,7 +10,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { requireAdmin } = require('../../middleware/auth');
-const { validateProgramIds } = require('../../lib/academicPrograms');
+const { validateProgramIds, hasDuplicateIds, MAX_MINORS, MAX_ADDITIONAL_MAJORS } = require('../../lib/academicPrograms');
 const StudentAcademicProfile = require('../../models/StudentAcademicProfile');
 const StudentSubmission = require('../../models/StudentSubmission');
 const Cohort = require('../../models/Cohort');
@@ -141,21 +141,34 @@ router.put('/students/:studentId/academic-profile', async (req, res) => {
     }
 
     // Validate additional majors
+    if (additionalMajorIds.length > MAX_ADDITIONAL_MAJORS) {
+      return res.status(400).json({ error: `A student can have at most ${MAX_ADDITIONAL_MAJORS} additional major.` });
+    }
+    // Primary and additional share one pool — the same major can't fill two slots.
+    if (hasDuplicateIds([primaryMajorId, ...additionalMajorIds])) {
+      return res.status(400).json({ error: 'The same major cannot be selected more than once.' });
+    }
     const { valid: validAdditional, invalid: invalidAdditional } = validateProgramIds(additionalMajorIds, 'major');
     if (invalidAdditional.length > 0) {
       return res.status(400).json({ error: `Unknown major program(s): ${invalidAdditional.join(', ')}` });
     }
 
     // Validate minors
+    if (minorIds.length > MAX_MINORS) {
+      return res.status(400).json({ error: `A student can have at most ${MAX_MINORS} minors.` });
+    }
+    if (hasDuplicateIds(minorIds)) {
+      return res.status(400).json({ error: 'The same minor cannot be selected more than once.' });
+    }
     const { valid: validMinors, invalid: invalidMinors } = validateProgramIds(minorIds, 'minor');
     if (invalidMinors.length > 0) {
       return res.status(400).json({ error: `Unknown minor program(s): ${invalidMinors.join(', ')}` });
     }
 
     // Normalize catalog year:
-    //   - undefined (not in body)  --> don't touch the stored override
-    //   - empty / equals cohort default --> clear override (null = inherit cohort)
-    //   - any other value            --> genuine per-student override
+    //   • undefined (not in body)  → don't touch the stored override
+    //   • empty / equals cohort default → clear override (null = inherit cohort)
+    //   • any other value            → genuine per-student override
     let normalizedCatalogYear;
     if (catalogYear === undefined) {
       normalizedCatalogYear = undefined; // preserve existing value

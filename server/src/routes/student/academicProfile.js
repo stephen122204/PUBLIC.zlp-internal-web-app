@@ -2,7 +2,7 @@
 const express = require('express');
 const { resolveStudentContext } = require('../../middleware/auth');
 const { getStudentActiveCohort } = require('../../lib/submissionHelpers');
-const { validateProgramIds } = require('../../lib/academicPrograms');
+const { validateProgramIds, hasDuplicateIds, MAX_MINORS, MAX_ADDITIONAL_MAJORS } = require('../../lib/academicPrograms');
 const StudentAcademicProfile = require('../../models/StudentAcademicProfile');
 const StudentSubmission = require('../../models/StudentSubmission');
 
@@ -144,6 +144,13 @@ router.put('/', resolveStudentContext, async (req, res) => {
     if (additionalMajorIds.length > 0 && !existingProfile?.secondaryProgramEnabled) {
       return res.status(403).json({ error: 'Secondary program enrollment has not been enabled for your account. Please contact your advisor.' });
     }
+    if (additionalMajorIds.length > MAX_ADDITIONAL_MAJORS) {
+      return res.status(400).json({ error: `You can add at most ${MAX_ADDITIONAL_MAJORS} additional major.` });
+    }
+    // Primary and additional share one pool — the same major can't fill two slots.
+    if (hasDuplicateIds([primaryMajorId, ...additionalMajorIds])) {
+      return res.status(400).json({ error: 'The same major cannot be selected more than once.' });
+    }
 
     let primaryMajor = null;
     if (primaryMajorId) {
@@ -159,6 +166,13 @@ router.put('/', resolveStudentContext, async (req, res) => {
     const { valid: validAdditional, invalid: invalidAdditional } = validateProgramIds(additionalMajorIds, 'major');
     if (invalidAdditional.length > 0) {
       return res.status(400).json({ error: 'Unknown major(s): ' + invalidAdditional.join(', ') });
+    }
+
+    if (minorIds.length > MAX_MINORS) {
+      return res.status(400).json({ error: `You can add at most ${MAX_MINORS} minors.` });
+    }
+    if (hasDuplicateIds(minorIds)) {
+      return res.status(400).json({ error: 'The same minor cannot be selected more than once.' });
     }
 
     const { valid: validMinors, invalid: invalidMinors } = validateProgramIds(minorIds, 'minor');

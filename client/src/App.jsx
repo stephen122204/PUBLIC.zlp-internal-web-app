@@ -60,7 +60,9 @@ const router = createBrowserRouter(
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="search" element={<StudentSearch />} />
         <Route path="degree-planner" element={<StudentDegreePlanner />} />
-        <Route path="future-planning" element={<StudentFuturePlanning />} />
+        <Route path="flowchart" element={<StudentFuturePlanning />} />
+        {/* Old path kept as a redirect so existing links/bookmarks still work. */}
+        <Route path="future-planning" element={<Navigate to="/student/flowchart" replace />} />
       </Route>
 
       {/* Catch-all */}

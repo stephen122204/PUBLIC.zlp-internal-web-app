@@ -1178,7 +1178,7 @@ export default function DegreeFlowchartPanel({ graph, semesters = [], height = 6
           fitViewOptions={{ padding: 0.2 }}
           minZoom={0.15}
           maxZoom={2}
-          attributionPosition="bottom-right"
+          proOptions={{ hideAttribution: true }}
         >
           <Background color="#e5e7eb" gap={20} />
           <Controls />

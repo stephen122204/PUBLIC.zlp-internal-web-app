@@ -6,7 +6,7 @@
  * scripts/build-grade-distributions.mjs) and, for a course + the instructors
  * teaching it this term, returns each instructor's historical GPA for THAT
  * course: overall (enrollment-weighted), the most recent term taught, and the
- * prior term. Returns null/empty when there's no match (--> UI shows "n/a").
+ * prior term. Returns null/empty when there's no match (→ UI shows "n/a").
  */
 
 const fs = require('fs');
@@ -33,8 +33,8 @@ function load() {
 
 /**
  * Normalize a Howdy instructor name to the grade-report key form "LASTNAME I".
- * "Shinjiro Sueda (P)" --> "SUEDA S".  Returns { primary, joined } keys
- * (joined collapses multi-word last names, e.g. "Van Buren" --> "VANBUREN J").
+ * "Shinjiro Sueda (P)" → "SUEDA S".  Returns { primary, joined } keys
+ * (joined collapses multi-word last names, e.g. "Van Buren" → "VANBUREN J").
  */
 function instructorKeys(howdyName) {
   if (!howdyName) return [];

@@ -19,8 +19,11 @@ function formatMeetings(meetings) {
 // an admin can inspect a conflicting course's section times in place — no
 // selection, no saving. Mirrors the admin "Manage" section modal, view-only.
 // ---------------------------------------------------------------------------
-export default function CourseSectionsViewerModal({ code, title = '', termCode, onClose }) {
+export default function CourseSectionsViewerModal({ code, title = '', termCode, highlightSections = [], isPreferred = false, onClose }) {
   useEscapeKey(onClose);
+  // Section ids to highlight (a restricted student's chosen sections that clash
+  // with the ZLP window). Matched against section number or CRN.
+  const highlightSet = new Set((highlightSections ?? []).map((s) => String(s)));
   const [available, setAvailable]   = useState([]);
   const [gradeStats, setGradeStats] = useState(null);
   const [loading, setLoading]       = useState(true);
@@ -40,6 +43,13 @@ export default function CourseSectionsViewerModal({ code, title = '', termCode, 
       .catch((err) => setError(err?.response?.data?.error ?? 'Failed to load sections.'))
       .finally(() => setLoading(false));
   }, [code, termCode]);
+
+  // A preferred course blocked on every available section is a full block, not a
+  // section-choice narrowing — highlighting every row conveys nothing, so drop it.
+  // Partial blocks (only some sections clash) stay highlighted.
+  const allSectionsClash = available.length > 0 &&
+    available.every((sec) => highlightSet.has(String(sec.section)) || highlightSet.has(String(sec.crn)));
+  const suppressHighlight = isPreferred && allSectionsClash;
 
   return (
     <div className="modal-overlay" style={{ zIndex: 10001 }} onClick={onClose}>
@@ -81,8 +91,17 @@ export default function CourseSectionsViewerModal({ code, title = '', termCode, 
                 {available.map((sec) => {
                   const instructorLabel = (sec.instructors ?? []).map((i) => i.name ?? i).filter(Boolean).join(', ') || '—';
                   const schedule = formatMeetings(sec.meetings) ?? '—';
+                  const highlighted = !suppressHighlight && (highlightSet.has(String(sec.section)) || highlightSet.has(String(sec.crn)));
                   return (
-                    <tr key={String(sec.crn)} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <tr
+                      key={String(sec.crn)}
+                      title={highlighted ? 'Chosen section that clashes with this ZLP window' : undefined}
+                      style={{
+                        borderBottom: '1px solid var(--color-border)',
+                        background: highlighted ? '#fef9c3' : undefined,
+                        boxShadow: highlighted ? 'inset 3px 0 0 #eab308' : undefined,
+                      }}
+                    >
                       <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>{sec.crn}</td>
                       <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>{sec.section}</td>
                       <td style={{ padding: '5px 8px' }}>{instructorLabel}</td>
@@ -93,10 +112,6 @@ export default function CourseSectionsViewerModal({ code, title = '', termCode, 
               </tbody>
             </table>
           )}
-        </div>
-
-        <div style={{ marginTop: 12, borderTop: '1px solid var(--color-border)', paddingTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn-secondary" style={{ fontSize: 12 }} onClick={onClose}>Close</button>
         </div>
       </div>
     </div>

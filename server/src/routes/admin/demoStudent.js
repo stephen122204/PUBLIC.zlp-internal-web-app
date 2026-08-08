@@ -188,7 +188,7 @@ router.post('/demo-student/session/start', requireAdmin, async (req, res) => {
       );
     }
 
-    // 4. Ensure an active CohortMember record links demo student --> demo cohort.
+    // 4. Ensure an active CohortMember record links demo student → demo cohort.
     const existingMember = await CohortMember.findOne({
       userId:   demoStudent._id,
       cohortId: demoCohort._id,

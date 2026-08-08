@@ -42,8 +42,34 @@ const degreeGraphRoutes = require('./routes/degreeGraph');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Connect MongoDB
-connectDB();
+// Behind Vercel's TLS-terminating proxy — required for `secure` cookies to be set.
+app.set('trust proxy', 1);
+
+// Health check — deliberately registered before the DB-connect gate and session
+// middleware so it always responds and can report actual DB state (including
+// "degraded" when disconnected). Used by uptime/deploy probes.
+app.get('/api/health', (_req, res) => {
+  const state = mongoose.connection.readyState;
+  // 0=disconnected 1=connected 2=connecting 3=disconnecting
+  const stateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  res.json({
+    status: state === 1 ? 'ok' : 'degraded',
+    database: stateMap[state] ?? 'unknown',
+  });
+});
+
+// Ensure MongoDB is connected before any route/session/passport work. Lazy
+// per-request connect is serverless-safe (see config/db.js); the cached
+// connection makes this a no-op after the first invocation.
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('[db] connection error:', err.message);
+    res.status(503).json({ error: 'Database unavailable' });
+  }
+});
 
 // CORS
 app.use(
@@ -66,6 +92,7 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // same-origin deployment — explicit rather than relying on the browser default
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   })
@@ -106,16 +133,12 @@ app.use('/api/student/howdy-import', studentHowdyImportRoutes);
 app.use('/api/academic-programs', academicProgramsRoutes);
 app.use('/api/degree-graph', degreeGraphRoutes);
 
-app.get('/api/health', (_req, res) => {
-  const state = mongoose.connection.readyState;
-  // 0=disconnected 1=connected 2=connecting 3=disconnecting
-  const stateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
-  res.json({
-    status: state === 1 ? 'ok' : 'degraded',
-    database: stateMap[state] ?? 'unknown',
+// Start a listener only when run directly (local dev / `npm run dev`).
+// On Vercel the app is imported by api/index.js and used as the function handler.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
   });
-});
+}
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+module.exports = app;

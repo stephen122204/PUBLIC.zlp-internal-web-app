@@ -1010,8 +1010,8 @@ function SectionPrefsEditorModal({ studentId, courseRequest, termCode, onClose, 
         </div>
 
         <div style={{ fontSize: 12, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
-          <strong>Note:</strong> Preferred sections affect the <em>Required + Preferred</em> algorithm run for this student course request only.
-          <em> Required Only</em> uses all available sections regardless of this setting.
+          <strong>Note:</strong> Preferred sections affect the <em>Sections-Preferred</em> algorithm run for this student course request only.
+          The <em>Required</em> and <em>Preferred</em> tiers use all available sections regardless of this setting.
           Any Changes sync to the submitted snapshot immediately. No re‑submit is necessary.
         </div>
 
@@ -1318,7 +1318,7 @@ function StudentReviewModal({ studentId, cohortId, cycleId, onClose, cohortCatal
               </div>
             )}
           </div>
-          <button className="btn-secondary" style={{ fontSize: 12 }} onClick={onClose}>✕ Close</button>
+          <button className="btn-secondary" style={{ fontSize: 12 }} onClick={onClose} title="Close">✕</button>
         </div>
 
         {/* Tab bar */}

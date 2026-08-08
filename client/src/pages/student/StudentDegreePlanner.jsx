@@ -7,7 +7,7 @@ import {
   getStudentSemesterPlan, saveStudentSemesterPlan,
   getStudentTermOptions,
   confirmDegreePlanImport,
-  getDegreeGraph,
+  getDegreeGraphCached,
   getCoursesBySubject,
   getCourseSubjects,
 } from '../../api';
@@ -649,7 +649,7 @@ export default function StudentDegreePlanner() {
     if (!programId) { setGraph(null); return; }
     setGraphLoading(true);
     try {
-      const { data } = await getDegreeGraph(programId);
+      const { data } = await getDegreeGraphCached(programId);
       setGraph(data.graph);
     } catch {
       setGraph(null);

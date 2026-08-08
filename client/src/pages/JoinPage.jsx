@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { validateInvite } from '../api';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+import { API_BASE_URL } from '../config';
 
 export default function JoinPage() {
   const { token } = useParams();
@@ -34,7 +33,7 @@ export default function JoinPage() {
   }, [token]);
 
   const handleJoin = () => {
-    window.location.href = `${API_BASE}/api/auth/google?token=${encodeURIComponent(token)}`;
+    window.location.href = `${API_BASE_URL}/api/auth/google?token=${encodeURIComponent(token)}`;
   };
 
   if (status === 'loading') {

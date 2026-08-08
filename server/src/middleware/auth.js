@@ -27,9 +27,9 @@ function requireDeveloper(req, res, next) {
 // resolveStudentContext
 //
 // Sets req.studentUser to the effective student identity:
-//   - Real student            --> req.studentUser = req.user
-//   - Admin + demo header     --> req.studentUser = admin's demo student
-//   - Developer (any mode)    --> req.studentUser = req.user (dev uses their own id)
+//   - Real student            → req.studentUser = req.user
+//   - Admin + demo header     → req.studentUser = admin's demo student
+//   - Developer (any mode)    → req.studentUser = req.user (dev uses their own id)
 //
 // Must be used on student-facing routes that need identity-scoped data.
 // Callers should use req.studentUser._id instead of req.user._id.

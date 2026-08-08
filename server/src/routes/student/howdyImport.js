@@ -48,10 +48,10 @@ function normCode(subject, number) {
 /**
  * Map a Howdy grade string to a simple status.
  * Grade buckets:
- *   withdraw / fail / Q-drop (W, WP, WF, F, U, NC, Q, …) --> SKIP (not completed)
- *   in-progress (IP, RP, I)                              --> in_progress
- *   planned / null / blank                               --> planned
- *   anything else (A, B, C, D, …)                        --> completed (D is a pass)
+ *   withdraw / fail / Q-drop (W, WP, WF, F, U, NC, Q, …) → SKIP (not completed)
+ *   in-progress (IP, RP, I)                              → in_progress
+ *   planned / null / blank                               → planned
+ *   anything else (A, B, C, D, …)                        → completed (D is a pass)
  * Failed/Q-dropped attempts are skipped entirely; if the course was retaken, only
  * the passing attempt lands in the completed section.
  */
@@ -88,7 +88,7 @@ function parseTerm(termDescription, termCode) {
   const termName = m ? (m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()) : 'Other';
   const year = yMatch ? parseInt(yMatch[0], 10) : null;
 
-  // Fallback: derive from termCode (e.g. "202331" --> 2023 Fall)
+  // Fallback: derive from termCode (e.g. "202331" → 2023 Fall)
   let derivedYear = year;
   let derivedTerm = termName;
   if (termCode && termCode.length >= 5 && (!year || termName === 'Other')) {
@@ -197,7 +197,7 @@ router.post('/', resolveStudentContext, async (req, res) => {
     }
 
     // ── Group by term ─────────────────────────────────────────────────────
-    const termMap = new Map(); // termKey --> { termInfo, courses[] }
+    const termMap = new Map(); // termKey → { termInfo, courses[] }
     for (const pc of parsedCourses) {
       const termKey = pc.termCode || pc.termDesc || 'unknown';
       if (!termMap.has(termKey)) {

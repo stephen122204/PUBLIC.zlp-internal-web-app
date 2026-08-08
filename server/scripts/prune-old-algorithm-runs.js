@@ -7,8 +7,8 @@
  *   DRY_RUN=false node scripts/prune-old-algorithm-runs.js  # live delete
  *
  * Retention rule: keep the 12 most-recent AlgorithmRun docs (by createdAt, _id).
- * Since each algorithm invocation produces 2 docs (required_only +
- * required_plus_preferred), 12 docs ≈ the last 6 full run attempts.
+ * Since each algorithm invocation produces 3 docs (required_only + preferred +
+ * required_plus_preferred), 12 docs ≈ the last 4 full run attempts.
  */
 process.chdir('/Users/Stephen/Desktop/ZLP_APP/server');
 require('dotenv').config();

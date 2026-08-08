@@ -134,7 +134,7 @@ export function evaluatePrerequisiteWarnings(graph, semesters) {
 
   const warnings = [];
 
-  // Build an ordered map: semesterIndex --> Set of course codes in that semester
+  // Build an ordered map: semesterIndex → Set of course codes in that semester
   const semesterCodeSets = (semesters ?? []).map((sem) => {
     const s = new Set();
     for (const c of sem.courses ?? []) {
@@ -209,7 +209,7 @@ export function evaluatePrerequisiteWarnings(graph, semesters) {
 }
 
 // ---------------------------------------------------------------------------
-// Graph node coloring (subject prefix --> color)
+// Graph node coloring (subject prefix → color)
 // ---------------------------------------------------------------------------
 
 const SUBJECT_COLORS = {
@@ -287,8 +287,8 @@ export function getPlaceholderPalette(title, requirementSubtype = null) {
 
 /**
  * Full, tidy type label shown under the "ELECTIVE" kicker on a generic elective slot —
- * e.g. "Engineering elective" --> "ENGR Elective", "Area elective" --> "Area Elective",
- * "Advanced chemistry" --> "Advanced Chemistry". The name is shown in full (wrapping onto
+ * e.g. "Engineering elective" → "ENGR Elective", "Area elective" → "Area Elective",
+ * "Advanced chemistry" → "Advanced Chemistry". The name is shown in full (wrapping onto
  * multiple lines in a narrow box rather than being abbreviated); acronyms / subject codes
  * that are already all-caps (ECEN, DAEN, ENGR) are preserved.
  */
@@ -324,8 +324,8 @@ export function isMultiOptionNode(node) {
 
 /**
  * Returns the single semantic color (border + course-code text) for a graph node.
- * Multi-option grouped nodes --> MULTI_OPTION_NODE_COLOR.
- * Single-course nodes --> subject prefix color via getSubjectColor.
+ * Multi-option grouped nodes → MULTI_OPTION_NODE_COLOR.
+ * Single-course nodes → subject prefix color via getSubjectColor.
  */
 export function getNodeSemanticColor(node) {
   if (isMultiOptionNode(node)) return MULTI_OPTION_NODE_COLOR;
@@ -335,7 +335,7 @@ export function getNodeSemanticColor(node) {
 
 /**
  * Convert a column ID (e.g. "y1f", "y2s") to a human-readable label.
- * Handles patterns: y1f --> "Year 1 Fall", col-0 --> "Semester 1", bare number --> "Semester N".
+ * Handles patterns: y1f → "Year 1 Fall", col-0 → "Semester 1", bare number → "Semester N".
  */
 export function columnIdToLabel(colId) {
   if (colId == null) return 'Other';
@@ -357,7 +357,7 @@ export function columnIdToLabel(colId) {
  *
  * @param {object[]} nodes
  * @param {object[]} edges
- * @returns {Map<string, number>} nodeId --> column index
+ * @returns {Map<string, number>} nodeId → column index
  */
 export function inferColumnLayout(nodes, edges) {
   const allIds   = new Set();
@@ -369,7 +369,7 @@ export function inferColumnLayout(nodes, edges) {
     for (const m of n.matches ?? []) codeToId.set(String(m).toUpperCase(), id);
   }
 
-  const adj      = new Map(); // id --> downstream ids
+  const adj      = new Map(); // id → downstream ids
   const indegree = new Map();
   for (const id of allIds) { adj.set(id, []); indegree.set(id, 0); }
 

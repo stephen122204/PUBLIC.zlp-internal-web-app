@@ -54,7 +54,7 @@ function buildRows(items, yTol = 2) {
     buckets.push({ y: item.y, items: [item] });
   }
 
-  // Sort top --> bottom (PDF y-axis increases upward, so descending y = top first)
+  // Sort top → bottom (PDF y-axis increases upward, so descending y = top first)
   return buckets
     .sort((a, b) => b.y - a.y)
     .map((b) => ({ y: b.y, items: b.items.sort((a, c) => a.x - c.x) }));
@@ -184,7 +184,7 @@ function extractPageBySections(items) {
 
   // Sort: left-column sections first (smaller leftX), then right-column.
   // JavaScript sort is stable (ES2019+), so sections within the same column
-  // keep their original top-->bottom order.
+  // keep their original top→bottom order.
   sections.sort((a, b) => {
     if (Math.abs(a.leftX - b.leftX) < 50) return 0; // same column — preserve order
     return a.leftX - b.leftX;

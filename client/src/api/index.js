@@ -27,14 +27,14 @@ export const regenerateInviteLink = (cohortId) =>
 // Admin join codes
 export const getJoinCode = (cohortId) =>
   api.get(`/api/admin/cohorts/${cohortId}/join-code`);
-export const generateJoinCode = (cohortId) =>
-  api.post(`/api/admin/cohorts/${cohortId}/join-code/generate`);
-export const regenerateJoinCode = (cohortId) =>
-  api.post(`/api/admin/cohorts/${cohortId}/join-code/regenerate`);
-export const setCustomJoinCode = (cohortId, code) =>
-  api.put(`/api/admin/cohorts/${cohortId}/join-code`, { code });
-export const setJoinCodeEnabled = (cohortId, enabled) =>
-  api.patch(`/api/admin/cohorts/${cohortId}/join-code/enabled`, { enabled });
+export const generateJoinCode = (cohortId, duration) =>
+  api.post(`/api/admin/cohorts/${cohortId}/join-code/generate`, { duration });
+export const regenerateJoinCode = (cohortId, duration) =>
+  api.post(`/api/admin/cohorts/${cohortId}/join-code/regenerate`, { duration });
+export const setCustomJoinCode = (cohortId, code, duration) =>
+  api.put(`/api/admin/cohorts/${cohortId}/join-code`, { code, duration });
+export const setJoinCodeEnabled = (cohortId, enabled, duration) =>
+  api.patch(`/api/admin/cohorts/${cohortId}/join-code/enabled`, { enabled, duration });
 
 // Student — join cohort by code
 export const joinCohort = (code) =>
@@ -56,6 +56,10 @@ export const searchCourses = ({ q, campus = 'college-station' }) =>
 
 export const getCourseCatalogTitle = (code) =>
   api.get('/api/student/courses/catalog-title', { params: { code } });
+
+// Batch prereq/coreq lookup (degree flowchart "My Plan" mode). codes: string[]
+export const getCoursePrereqs = (codes) =>
+  api.get('/api/student/courses/prereqs', { params: { codes: codes.join(',') } });
 
 export const getCourseSubjects = ({ campus = 'college-station' } = {}) =>
   api.get('/api/student/courses/subjects', { params: { campus } });
@@ -211,6 +215,25 @@ export const confirmDegreePlanImport = (semesters, mergeMode = 'replace') => api
 // Degree requirement graph
 // ---------------------------------------------------------------------------
 export const getDegreeGraph = (programId) => api.get(`/api/degree-graph/${encodeURIComponent(programId)}`);
+
+// Client-side cache for the degree graph — the heaviest fetch, shared by the flowchart and
+// planner tabs and rarely-changing. Switching between those tabs reuses it instead of
+// re-hitting the server. TTL-based; invalidated by the developer "Refresh graph" action.
+// Cache lives for the SPA session (cleared on full page reload).
+const _graphCache = new Map(); // programId -> { res, ts }
+const GRAPH_CACHE_TTL_MS = 5 * 60 * 1000;
+export const getDegreeGraphCached = async (programId) => {
+  const hit = _graphCache.get(programId);
+  if (hit && Date.now() - hit.ts < GRAPH_CACHE_TTL_MS) return hit.res;
+  const res = await getDegreeGraph(programId);
+  _graphCache.set(programId, { res, ts: Date.now() });
+  return res;
+};
+export const invalidateDegreeGraphCache = (programId) => {
+  if (programId) _graphCache.delete(programId);
+  else _graphCache.clear();
+};
+
 export const refreshDegreeGraph = (programId) => api.post(`/api/degree-graph/developer/${encodeURIComponent(programId)}/refresh`);
 export const buildEngineeringGraphs = () => api.post('/api/degree-graph/developer/build-engineering');
 

@@ -10,12 +10,15 @@
  *   multiple    boolean
  *   placeholder string
  *   onClose     () => void  (call to dismiss)
+ *   excludeIds  string[]  — programs already chosen elsewhere; hidden from the list
+ *                          so the same program can't be picked twice. The value
+ *                          being edited stays visible even if it's in the list.
  */
 import { useEffect, useState } from 'react';
 import { getAcademicMajors, getAcademicMinors } from '../api';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 
-export default function AcademicProgramPicker({ type, value, onChange, multiple, placeholder, onClose, onClear, catalogYear }) {
+export default function AcademicProgramPicker({ type, value, onChange, multiple, placeholder, onClose, onClear, catalogYear, excludeIds = [] }) {
   useEscapeKey(onClose);
   const [programs, setPrograms]     = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -35,13 +38,17 @@ export default function AcademicProgramPicker({ type, value, onChange, multiple,
       .finally(() => setLoading(false));
   }, [type, catalogYear]);
 
+  // Hide programs taken by another slot, but never the one being edited.
+  const hidden = new Set(excludeIds.filter((id) => !selected.includes(id)));
+  const available = hidden.size ? programs.filter((p) => !hidden.has(p.id)) : programs;
+
   // Filter by query
   const filtered = query.trim()
-    ? programs.filter((p) =>
+    ? available.filter((p) =>
         p.title.toLowerCase().includes(query.toLowerCase()) ||
         (p.college ?? '').toLowerCase().includes(query.toLowerCase())
       )
-    : programs;
+    : available;
 
   function handleToggle(id) {
     if (multiple) {

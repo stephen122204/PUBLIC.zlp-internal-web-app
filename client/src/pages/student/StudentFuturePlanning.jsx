@@ -13,9 +13,13 @@ import 'reactflow/dist/style.css';
 import {
   getStudentAcademicProfile,
   getStudentSemesterPlan,
-  getDegreeGraph,
+  getDegreeGraphCached,
+  invalidateDegreeGraphCache,
   getCourseCatalogTitle,
+  getCoursePrereqs,
+  refreshDegreeGraph,
 } from '../../api';
+import { useViewMode } from '../../context/ViewModeContext';
 import {
   getCourseState,
   getNodeSemanticColor,
@@ -191,14 +195,16 @@ function CourseNode({ data }) {
         : { bg: '#f5f3ff', border: '#7c3aed', head: '#5b21b6', body: '#6d28d9', dim: '#7c3aed' };
       // Show the catalog's exact hour range (e.g. "6-9") when known, else the single number.
       const hoursDisplay = requiredHoursLabel || requiredHours;
+      // Pools are "select from these" areas, not discrete CHOOSE ONE nodes — word them
+      // as a selection from the set rather than "Pick 1 of N" (which reads as choose-one).
       const slotLabel = isHoursBased
         ? `Select ${hoursDisplay} hrs`
-        : `Pick ${pickCount ?? 1} of ${pool.length}`;
+        : `Select ${pickCount ?? 1} from ${pool.length}`;
       const abbrevPool = pool.map(abbrevOptionLabel);
       const sep = pool.length <= 5 ? ' / ' : ', ';
       const preview = abbrevPool.slice(0, 4).join(sep) + (pool.length > 4 ? `${sep}+${pool.length - 4} more` : '');
       const fullList = pool.join(', ');
-      const tipText  = `${kindLabel}${title ? ` — ${title}` : ''} · ${isHoursBased ? `Select ${requiredHours} hrs from` : `Pick ${pickCount ?? 1} of`}: ${fullList}`;
+      const tipText  = `${kindLabel}${title ? ` — ${title}` : ''} · ${isHoursBased ? `Select ${requiredHours} hrs from` : `Select ${pickCount ?? 1} from`}: ${fullList}`;
       return (
         <div style={wrapStyle} title={tipText}>
           <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
@@ -726,6 +732,112 @@ function buildReactFlowGraph(graph, semesters, colOverride = null, selectedTrack
   return { nodes: rfNodes, edges: rfEdges, defaultChoiceSelections, choiceOptionCounts, choiceOptionsMap };
 }
 
+// "My Plan" mode — build the flowchart from the courses the student placed in their
+// Degree Planner (their semester plan), positioned in the semester they put them.
+// Read-only visualization: reuses the scraped graph's edges to draw prereq/coreq
+// arrows between the courses that are actually in the plan. Never writes anything.
+function buildStudentPlanGraph(semesters, graph, planPrereqs = {}) {
+  const sems = (semesters ?? []).filter((s) => (s.courses?.length ?? 0) > 0);
+  if (!sems.length) return { nodes: [], edges: [], defaultChoiceSelections: {}, choiceOptionCounts: {}, choiceOptionsMap: {} };
+
+  const codeToId = new Map(); // course code (+ aliases) → RF node id
+  const rfNodes = [];
+
+  sems.forEach((sem, ci) => {
+    const x = ci * COL_WIDTH;
+    // Header shows just "Term Year" — strip any campus/suffix after " - " (e.g.
+    // "Spring 2027 - College Station" → "Spring 2027").
+    const colLabel = String(sem.label ?? '').split(/\s+[–-]\s+/)[0].trim() || `Semester ${ci + 1}`;
+    rfNodes.push({
+      id: `__col_header_${ci}`, type: 'columnHeader',
+      position: { x, y: HEADER_Y }, data: { label: colLabel },
+      selectable: false, draggable: false, connectable: false,
+    });
+    let y = 0;
+    (sem.courses ?? []).forEach((c, cj) => {
+      const code = String(c.code ?? '').toUpperCase().trim();
+      const rfId = `plan-${ci}-${cj}-${code || 'x'}`;
+      if (code) codeToId.set(code, rfId);
+      for (const m of c.matches ?? []) codeToId.set(String(m).toUpperCase().trim(), rfId);
+      let color;
+      try { color = getNodeSemanticColor({ code: c.code, requirementType: 'required', matches: c.matches ?? [] }); }
+      catch { color = '#93c5fd'; }
+      rfNodes.push({
+        id: rfId, type: 'course', position: { x, y },
+        data: {
+          nodeId: rfId, code: c.code ?? code, title: c.title ?? '',
+          creditHours: c.creditHours ?? null,
+          requirementType: 'required', requirementSubtype: null,
+          matches: c.matches ?? [], selectedOption: null,
+          options: [], optionStates: [], optionPrereqs: null, optionCoreqs: null,
+          activeOptionIdx: 0, alternatives: null, pickCount: null,
+          requiredHours: null, requiredHoursLabel: null, paths: [],
+          state: sem.status ?? 'planned', color,
+        },
+      });
+      y += ROW_HEIGHT;
+    });
+  });
+
+  // "Satisfy one" OR-group coloring — mirrors buildReactFlowGraph: an interchangeable
+  // prereq group is colored only when 2+ of its alternatives are present as plan nodes.
+  const prereqGroupColor = new Map(); // "TARGETCODE|SOURCECODE" → color index
+  for (const sem of sems) {
+    for (const c of sem.courses ?? []) {
+      const tgt = String(c.code ?? '').toUpperCase().trim();
+      const groups = planPrereqs?.[tgt]?.prereqGroups;
+      if (!tgt || !Array.isArray(groups)) continue;
+      let colorIdx = 0;
+      for (const g of groups) {
+        if (!Array.isArray(g) || g.length < 2) continue;
+        const distinct = new Set(g.map((x) => codeToId.get(String(x).toUpperCase().trim())).filter(Boolean));
+        if (distinct.size < 2) continue;
+        for (const x of g) prereqGroupColor.set(`${tgt}|${String(x).toUpperCase().trim()}`, colorIdx);
+        colorIdx += 1;
+      }
+    }
+  }
+
+  // Prereq/coreq edges among the planned courses. Union of two sources so ALL levels
+  // show for the courses you added: (1) the scraped degree graph's edges, and (2) each
+  // course's own catalog prereqs/coreqs (planPrereqs) — the latter covers relationships
+  // the degree-plan scrape didn't capture. Both endpoints must be courses in the plan.
+  const rfEdges = [];
+  const seen = new Set();
+  const addEdge = (fromCode, toCode, type) => {
+    const src = codeToId.get(String(fromCode ?? '').toUpperCase().trim());
+    const tgt = codeToId.get(String(toCode ?? '').toUpperCase().trim());
+    if (!src || !tgt || src === tgt) return;
+    const key = `${src}--${tgt}--${type}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const isCo = type === 'corequisite';
+    const groupColorIdx = !isCo
+      ? (prereqGroupColor.get(`${String(toCode).toUpperCase().trim()}|${String(fromCode).toUpperCase().trim()}`) ?? null)
+      : null;
+    rfEdges.push({
+      id: key, source: src, target: tgt, animated: false, type: 'default',
+      pathOptions: { curvature: 0.25 },
+      style: isCo ? { fill: 'none', strokeDasharray: '5,3', stroke: '#9ca3af', strokeWidth: 2 } : { fill: 'none', stroke: '#6b7280', strokeWidth: 1.5 },
+      markerEnd: isCo ? { type: 'arrow', color: '#9ca3af' } : { type: 'arrowclosed', color: '#6b7280' },
+      data: { isCo, curvature: 0.25, optionCode: null, choiceNodeId: null, groupColorIdx },
+    });
+  };
+
+  for (const e of graph?.edges ?? []) addEdge(e.from, e.to, e.type === 'corequisite' ? 'corequisite' : 'prerequisite');
+
+  for (const sem of sems) {
+    for (const c of sem.courses ?? []) {
+      const rec = planPrereqs?.[String(c.code ?? '').toUpperCase().trim()];
+      if (!rec) continue;
+      for (const p of rec.prereqs ?? []) addEdge(p, c.code, 'prerequisite');
+      for (const p of rec.coreqs ?? [])  addEdge(p, c.code, 'corequisite');
+    }
+  }
+
+  return { nodes: rfNodes, edges: rfEdges, defaultChoiceSelections: {}, choiceOptionCounts: {}, choiceOptionsMap: {} };
+}
+
 // Given a selected node id + edge list, compute which node ids are
 // direct/transitive prereqs (upstream) and direct/transitive dependents (downstream).
 // One hop only — immediate prereqs and immediate dependents of selectedId
@@ -982,6 +1094,17 @@ export default function StudentFuturePlanning() {
   const [graph, setGraph]                     = useState(null);
   const [loading, setLoading]                 = useState(true);
   const [error, setError]                     = useState(null);
+  // 'recommended' = the school's scraped degree plan; 'myplan' = the courses the
+  // student placed in their Degree Planner. Visual only — never affects classification.
+  const [planMode, setPlanMode]               = useState('recommended');
+  // Catalog prereqs/coreqs for the plan's courses (My Plan mode draws all their arrows).
+  const [planPrereqs, setPlanPrereqs]         = useState({});
+  const prereqKeyRef                          = useRef('');
+  // Developer-only: re-scrape this program's degree graph from the catalog (clears the
+  // MongoDB cache) so parser fixes show without a manual console call.
+  const { isDeveloper }                       = useViewMode();
+  const [refreshingGraph, setRefreshingGraph] = useState(false);
+  const [refreshMsg, setRefreshMsg]           = useState('');
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -1028,7 +1151,7 @@ export default function StudentFuturePlanning() {
         const programId = prof?.primaryMajor?.programId ?? null;
         if (programId) {
           try {
-            const { data } = await getDegreeGraph(programId);
+            const { data } = await getDegreeGraphCached(programId);
             if (mounted) setGraph(data.graph ?? null);
           } catch {
             if (mounted) setGraph(null);
@@ -1044,11 +1167,33 @@ export default function StudentFuturePlanning() {
     return () => { mounted = false; };
   }, []);
 
+  // Fetch catalog prereqs/coreqs for every course in the plan so My Plan draws ALL
+  // prerequisite arrows (not just the ones the degree-plan scrape captured). Prefetched
+  // as soon as the plan loads — not gated on My Plan being active — so switching to My
+  // Plan shows every arrow at once instead of having the extra ones pop in a moment later.
+  // Fetched once per distinct set of plan codes and cached.
+  useEffect(() => {
+    const codes = [...new Set(
+      (semesters ?? []).flatMap((s) => (s.courses ?? []).map((c) => String(c.code ?? '').toUpperCase().trim())).filter(Boolean)
+    )];
+    if (!codes.length) return;
+    const key = codes.slice().sort().join('|');
+    if (prereqKeyRef.current === key) return;
+    prereqKeyRef.current = key;
+    let cancelled = false;
+    getCoursePrereqs(codes)
+      .then((res) => { if (!cancelled) setPlanPrereqs(res.data?.prereqs ?? {}); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [semesters]);
+
   // Rebuild React Flow graph whenever graph or semesters change
   const selectedTrackId = academicProfile?.primaryMajor?.selectedTrackId ?? null;
   useEffect(() => {
     const { nodes: rfNodes, edges: rfEdges, defaultChoiceSelections, choiceOptionCounts, choiceOptionsMap } =
-      buildReactFlowGraph(graph, semesters, null, selectedTrackId);
+      planMode === 'myplan'
+        ? buildStudentPlanGraph(semesters, graph, planPrereqs)
+        : buildReactFlowGraph(graph, semesters, null, selectedTrackId);
     choiceMetaRef.current = { counts: choiceOptionCounts ?? {}, options: choiceOptionsMap ?? {} };
     setNodes(rfNodes);
     setEdges(rfEdges);
@@ -1056,7 +1201,7 @@ export default function StudentFuturePlanning() {
     setBottleneckActive(false);
     setBottleneckRouteIdx(0);
     setChoiceSel(defaultChoiceSelections ?? {});
-  }, [graph, semesters, selectedTrackId, setNodes, setEdges]);
+  }, [graph, semesters, selectedTrackId, planMode, planPrereqs, setNodes, setEdges]);
 
   // Resolve each choice node's currently-active option code (for edge gating).
   function activeOptionCodes() {
@@ -1195,6 +1340,48 @@ export default function StudentFuturePlanning() {
   const hasProgramId = !!academicProfile?.primaryMajor?.programId;
   const hasGraph     = (graph?.nodes?.length ?? 0) > 0;
 
+  // Recommended is scraped from the primary major alone, so its header names only that.
+  // My Plan spans everything the student is enrolled in — list every major, then minors.
+  const planPrograms = useMemo(() => {
+    const label = (p) => p?.title || p?.programId;
+    return {
+      majors: [academicProfile?.primaryMajor, ...(academicProfile?.additionalMajors ?? [])]
+        .filter(Boolean).map(label).filter(Boolean),
+      minors: (academicProfile?.minors ?? []).map(label).filter(Boolean),
+    };
+  }, [academicProfile]);
+
+  // Header course count. A senior-design path_option is one node but represents multiple
+  // courses (e.g. CPEN's ECEN 403 + ECEN 404), so count it by its fullest path's course
+  // count instead of 1 — CPEN then reads 43, not 42.
+  const courseCount = nodes.reduce((sum, n) => {
+    if (n.type === 'columnHeader') return sum;
+    if (n.type === 'pathOption') {
+      const maxPathCourses = (n.data?.paths ?? []).reduce((m, p) => Math.max(m, p.courses?.length ?? 0), 0);
+      return sum + Math.max(1, maxPathCourses);
+    }
+    return sum + 1;
+  }, 0);
+
+  const handleRefreshGraph = async () => {
+    const programId = academicProfile?.primaryMajor?.programId;
+    if (!programId || refreshingGraph) return;
+    setRefreshingGraph(true);
+    setRefreshMsg('');
+    try {
+      await refreshDegreeGraph(programId);      // clears cache + re-scrapes on the server
+      invalidateDegreeGraphCache(programId);    // drop the stale client cache too
+      const { data } = await getDegreeGraphCached(programId);
+      setGraph(data.graph ?? null);             // re-render with the fresh graph (re-cached)
+      setRefreshMsg('Refreshed');
+      setTimeout(() => setRefreshMsg(''), 3000);
+    } catch (err) {
+      setRefreshMsg(err?.response?.data?.error || 'Refresh failed');
+    } finally {
+      setRefreshingGraph(false);
+    }
+  };
+
   const onNodeClick = useCallback((_evt, node) => {
     if (node.type === 'columnHeader') return;
     // Elective / UCC placeholder blocks are not interactive
@@ -1317,7 +1504,16 @@ export default function StudentFuturePlanning() {
           {/* Header bar: title + view mode toggle */}
           <div style={{ padding: '10px 14px', background: 'var(--color-surface,#fff)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: 15 }}>{graph.title}</strong>
+              <strong style={{ fontSize: 15 }}>
+                {planMode === 'myplan' && planPrograms.majors.length > 0
+                  ? planPrograms.majors.join(', ')
+                  : graph.title}
+              </strong>
+              {planMode === 'myplan' && planPrograms.minors.length > 0 && (
+                <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  {planPrograms.minors.join(', ')}
+                </span>
+              )}
               {(() => {
                 const trackName = graph.availableTracks?.find((t) => t.id === selectedTrackId)?.name;
                 return trackName ? (
@@ -1328,14 +1524,53 @@ export default function StudentFuturePlanning() {
               })()}
               {graph.catalog && <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{graph.catalog}</span>}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-              {graph.nodes.length} courses &middot; {graph.edges?.length ?? 0} edges
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* Mode toggle — Recommended (scraped plan) vs My Plan (student's own planner). */}
+              <div style={{ display: 'inline-flex', border: '1px solid var(--color-border)', borderRadius: 999, overflow: 'hidden' }}>
+                {[['recommended', 'Recommended'], ['myplan', 'My Plan']].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setPlanMode(mode)}
+                    title={mode === 'recommended' ? "The school's recommended course order" : 'The courses you placed in your Degree Planner'}
+                    style={{
+                      border: 'none', padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      background: planMode === mode ? 'var(--color-primary)' : '#fff',
+                      color: planMode === mode ? '#fff' : 'var(--color-primary)',
+                    }}
+                  >{label}</button>
+                ))}
+              </div>
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+                {courseCount} courses &middot; {edges.length} edges
+              </span>
+              {isDeveloper && (
+                <button
+                  type="button"
+                  onClick={handleRefreshGraph}
+                  disabled={refreshingGraph}
+                  title="Developer: re-scrape this program's degree graph from the catalog (clears the cached copy)"
+                  className="btn-sm"
+                  style={{ background: '#fff', color: 'var(--color-primary)', border: '1px solid var(--color-border)', whiteSpace: 'nowrap' }}
+                >
+                  {refreshingGraph ? 'Refreshing…' : (refreshMsg || '↻ Refresh graph')}
+                </button>
+              )}
             </div>
           </div>
 
           <Legend />
 
-          <div style={{ flex: isFullscreen ? 1 : undefined, height: isFullscreen ? undefined : 700 }}>
+          <div style={{ position: 'relative', flex: isFullscreen ? 1 : undefined, height: isFullscreen ? undefined : 700 }}>
+            {planMode === 'myplan' && nodes.filter((n) => n.type === 'course').length === 0 && (
+              <div style={{ position: 'absolute', inset: 0, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24, pointerEvents: 'none' }}>
+                <img src="/icon-degree-planner.png" alt="" style={{ width: 44, height: 44, objectFit: 'contain', opacity: 0.35, marginBottom: 8 }} />
+                <div style={{ fontWeight: 600, color: '#374151' }}>No courses in your plan yet</div>
+                <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4, maxWidth: 380 }}>
+                  Add courses in the <a href="/student/degree-planner" style={{ pointerEvents: 'auto' }}>Degree Planner</a>, then switch to <strong>My Plan</strong> to see them here.
+                </div>
+              </div>
+            )}
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -1348,7 +1583,7 @@ export default function StudentFuturePlanning() {
               fitViewOptions={{ padding: 0.2 }}
               minZoom={0.2}
               maxZoom={2}
-              attributionPosition="bottom-right"
+              proOptions={{ hideAttribution: true }}
             >
               <Background color="#e5e7eb" gap={20} />
               <Controls />

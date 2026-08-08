@@ -13,6 +13,16 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString();
 }
 
+// How long a code stays active after enabling. Keys match the server enum.
+const DURATION_OPTIONS = [
+  { key: '1d',    label: '1 day' },
+  { key: '3d',    label: '3 days' },
+  { key: '7d',    label: '7 days' },
+  { key: '30d',   label: '1 month' },
+  { key: 'never', label: 'No expiry' },
+];
+const DEFAULT_DURATION = '3d';
+
 export default function AdminJoinCode() {
   const [cohorts, setCohorts] = useState([]);
   const [selectedId, setSelectedId] = useState('');
@@ -24,6 +34,7 @@ export default function AdminJoinCode() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [customCode, setCustomCode] = useState('');
   const [customError, setCustomError] = useState('');
+  const [duration, setDuration] = useState(DEFAULT_DURATION);
 
   useEffect(() => {
     getCohorts().then((res) => {
@@ -42,6 +53,7 @@ export default function AdminJoinCode() {
     try {
       const res = await getJoinCode(selectedId);
       setData(res.data);
+      setDuration(res.data.joinCodeDuration || DEFAULT_DURATION);
     } catch {
       setError('Failed to load join code.');
     } finally {
@@ -55,7 +67,7 @@ export default function AdminJoinCode() {
     setActionLoading(true);
     setError('');
     try {
-      const res = await generateJoinCode(selectedId);
+      const res = await generateJoinCode(selectedId, duration);
       setData(res.data);
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to generate code.');
@@ -68,10 +80,27 @@ export default function AdminJoinCode() {
     setActionLoading(true);
     setError('');
     try {
-      const res = await regenerateJoinCode(selectedId);
+      const res = await regenerateJoinCode(selectedId, duration);
       setData(res.data);
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to regenerate code.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Pick a duration. If a code is currently active, apply the new window
+  // immediately; otherwise just remember it for the next Generate/Enable.
+  const handleSelectDuration = async (next) => {
+    setDuration(next);
+    if (!data?.joinCode || !data.joinCodeEnabled || data.archived) return;
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await setJoinCodeEnabled(selectedId, true, next);
+      setData((prev) => ({ ...prev, ...res.data }));
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to update duration.');
     } finally {
       setActionLoading(false);
     }
@@ -87,7 +116,7 @@ export default function AdminJoinCode() {
     setCustomError('');
     setError('');
     try {
-      const res = await setCustomJoinCode(selectedId, val);
+      const res = await setCustomJoinCode(selectedId, val, duration);
       setData(res.data);
       setCustomCode('');
     } catch (err) {
@@ -103,7 +132,7 @@ export default function AdminJoinCode() {
     setActionLoading(true);
     setError('');
     try {
-      const res = await setJoinCodeEnabled(selectedId, !data.joinCodeEnabled);
+      const res = await setJoinCodeEnabled(selectedId, !data.joinCodeEnabled, duration);
       setData((prev) => ({ ...prev, ...res.data }));
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to update.');
@@ -122,6 +151,33 @@ export default function AdminJoinCode() {
 
   const isArchived = data?.archived;
   const hasCode = !!data?.joinCode;
+  const durationLabel = DURATION_OPTIONS.find((o) => o.key === duration)?.label ?? '3 days';
+
+  // Segmented pill selector — shared between the "code exists" and "generate" states.
+  const durationSelector = (
+    <div>
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Code duration</div>
+      <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
+        {DURATION_OPTIONS.map((opt) => {
+          const selected = duration === opt.key;
+          return (
+            <button
+              key={opt.key}
+              className="btn-sm"
+              onClick={() => handleSelectDuration(opt.key)}
+              disabled={actionLoading || isArchived}
+              style={selected
+                ? { background: 'var(--color-primary)', color: '#fff', border: '1px solid var(--color-primary)' }
+                : { background: '#fff', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }
+              }
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
@@ -198,10 +254,15 @@ export default function AdminJoinCode() {
                     {data.joinCode}
                   </span>
                 </div>
-                {data.joinCodeEnabled && data.joinCodeExpiresAt && (
+                {data.joinCodeEnabled && (
                   <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
-                    Expires {formatDate(data.joinCodeExpiresAt)}
+                    {data.joinCodeExpiresAt
+                      ? `Expires ${formatDate(data.joinCodeExpiresAt)}`
+                      : 'No expiry — active until disabled'}
                   </div>
+                )}
+                {!isArchived && (
+                  <div style={{ marginBottom: 16 }}>{durationSelector}</div>
                 )}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', marginTop: 20 }}>
                   {!isArchived && (
@@ -234,7 +295,9 @@ export default function AdminJoinCode() {
                   </div>
                 )}
                 <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  Codes are active for 3 days after enabling. Re-enable at any time to reset the window.
+                  {duration === 'never'
+                    ? 'Code stays active until you disable it.'
+                    : `Codes are active for ${durationLabel} after enabling. Re-enable at any time to reset the window.`}
                 </div>
                 {!isArchived && (
                   <div style={{ marginTop: 2, fontSize: 12, color: 'var(--color-text-muted)' }}>
@@ -252,7 +315,8 @@ export default function AdminJoinCode() {
                 lives inline in the button row above. */}
             {!isArchived && !hasCode && (
               <div style={{ borderTop: '1px solid var(--color-border)', marginTop: 24, paddingTop: 20 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 14 }}>Generate Code</div>
+                <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 14 }}>Generate Code</div>
+                <div style={{ marginBottom: 16 }}>{durationSelector}</div>
                 <button className="btn-primary btn-sm" onClick={handleGenerate} disabled={actionLoading}>
                   {actionLoading ? 'Generating...' : 'Generate Code'}
                 </button>
