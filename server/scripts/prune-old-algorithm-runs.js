@@ -10,7 +10,7 @@
  * Since each algorithm invocation produces 3 docs (required_only + preferred +
  * required_plus_preferred), 12 docs ≈ the last 4 full run attempts.
  */
-process.chdir('/Users/Stephen/Desktop/ZLP_APP/server');
+process.chdir(require('path').resolve(__dirname, '..'));
 require('dotenv').config();
 const mongoose = require('mongoose');
 

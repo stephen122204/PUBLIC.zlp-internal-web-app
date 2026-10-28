@@ -5,7 +5,7 @@
 // database, and all pass/retake handling lives in code. Removing a field from a
 // Mongoose schema does NOT strip it from already-saved documents, so this script
 // $unsets them directly on the collection.
-process.chdir('/Users/Stephen/Desktop/ZLP_APP/server');
+process.chdir(require('path').resolve(__dirname, '..'));
 require('dotenv').config();
 const mongoose = require('mongoose');
 

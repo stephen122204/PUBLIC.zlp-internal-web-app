@@ -5,7 +5,7 @@
 // Usage:
 //   node scripts/list-planned-courses.js            → every student
 //   node scripts/list-planned-courses.js smith      → only students whose name/email contains "smith"
-process.chdir('/Users/Stephen/Desktop/ZLP_APP/server');
+process.chdir(require('path').resolve(__dirname, '..'));
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('../src/models/User');
